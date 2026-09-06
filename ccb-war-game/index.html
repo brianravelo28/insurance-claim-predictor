@@ -1,0 +1,2236 @@
+<title>Charla y Suerte</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Libre+Franklin:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --felt-950:#0a2b25;
+    --felt-900:#0f3a32;
+    --felt-850:#123f37;
+    --felt-800:#15473e;
+    --felt-700:#1e5a4d;
+    --felt-600:#2b7263;
+    --hairline: rgba(227,179,65,0.22);
+    --gold:#e3b341;
+    --gold-soft:#f0ce7a;
+    --gold-dim: rgba(227,179,65,0.55);
+    --cream:#f4efe0;
+    --cream-dim:#c9c2ac;
+    --cream-faint: rgba(244,239,224,0.55);
+    --coral:#e8795a;
+    --coral-dim: rgba(232,121,90,0.16);
+    --periwinkle:#7c9cde;
+    --periwinkle-dim: rgba(124,156,222,0.16);
+    --sage:#9bc46b;
+    --sage-dim: rgba(155,196,107,0.16);
+    --shadow: 0 20px 50px -20px rgba(0,0,0,0.6);
+    --radius: 18px;
+    --display: "Big Shoulders Display", "Arial Narrow", sans-serif;
+    --body: "Libre Franklin", "Segoe UI", sans-serif;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:
+      radial-gradient(120% 100% at 15% -10%, rgba(227,179,65,0.08), transparent 55%),
+      radial-gradient(140% 120% at 85% 110%, rgba(43,114,99,0.35), transparent 60%),
+      var(--felt-950);
+    color: var(--cream);
+    font-family: var(--body);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  ::selection{ background: var(--gold-dim); color: var(--felt-950); }
+
+  button{ font-family: inherit; }
+  button:focus-visible, [tabindex]:focus-visible, input:focus-visible{
+    outline: 2px solid var(--gold-soft);
+    outline-offset: 2px;
+  }
+
+  .app{
+    min-height: 100vh;
+    display:flex;
+    flex-direction:column;
+  }
+
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 12px;
+    padding: 22px clamp(20px,5vw,56px) 6px;
+  }
+  .brand{
+    display:flex;
+    flex-direction: column;
+    align-items:flex-start;
+    gap:6px;
+    font-family: var(--display);
+    letter-spacing: 0.01em;
+    min-width:0;
+  }
+  .brand .mark{
+    font-size: clamp(20px, 5vw, 30px);
+    font-weight:800;
+    line-height: 1.05;
+    color: var(--gold-soft);
+    white-space: nowrap;
+  }
+  .brand .sub{
+    font-size: 12px;
+    font-weight:500;
+    color: var(--cream-faint);
+    font-family: var(--body);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .topbar-actions{ flex: 0 0 auto; }
+  @media (max-width: 480px){
+    .brand .sub{ display:none; }
+  }
+  .topbar-actions{ display:flex; gap:10px; }
+  .icon-btn{
+    background: rgba(244,239,224,0.06);
+    border:1px solid var(--hairline);
+    color: var(--cream);
+    border-radius: 999px;
+    padding: 10px 18px;
+    font-size: 14.5px;
+    font-weight:600;
+    white-space: nowrap;
+    cursor:pointer;
+    display:flex; align-items:center; gap:7px;
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+  .icon-btn:hover{ background: rgba(244,239,224,0.12); transform: translateY(-1px); }
+
+  /* ---------- SETUP SCREEN ---------- */
+  .setup-screen{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding: 10px 0 60px;
+  }
+  .setup-intro{
+    padding: 0 clamp(20px,5vw,56px);
+    margin-bottom: 26px;
+  }
+  .setup-intro h1{
+    font-family: var(--display);
+    font-weight:800;
+    font-size: clamp(34px, 5vw, 54px);
+    line-height: 0.98;
+    margin: 0 0 8px;
+    text-wrap: balance;
+  }
+  .setup-intro p{
+    margin:0;
+    max-width: 62ch;
+    color: var(--cream-faint);
+    font-size: 15px;
+    line-height:1.55;
+  }
+
+  .menu-row-wrap{
+    position:relative;
+  }
+  .menu-row{
+    display:flex;
+    gap: 18px;
+    align-items: flex-start;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    padding: 4px clamp(20px,5vw,56px) 30px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--felt-600) transparent;
+  }
+  .menu-row::before{
+    content:"";
+    flex: 0 0 clamp(40px, 12vw, 160px);
+  }
+  .menu-row::after{
+    content:"";
+    flex: 0 0 40px;
+  }
+  .menu-row::-webkit-scrollbar{ height:8px; }
+  .menu-row::-webkit-scrollbar-thumb{ background: var(--felt-600); border-radius:8px; }
+
+  .menu-card{
+    flex: 0 0 auto;
+    width: min(320px, 82vw);
+    background: linear-gradient(165deg, var(--felt-800), var(--felt-850));
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 22px 22px 24px;
+    animation: pop-in 0.42s cubic-bezier(.2,1.4,.4,1) both;
+  }
+  @keyframes pop-in{
+    from{ opacity:0; transform: translateX(28px) scale(0.94); }
+    to{ opacity:1; transform: translateX(0) scale(1); }
+  }
+  .menu-card.wide{ width: min(420px, 88vw); }
+  .menu-card.no-pop{ animation: none; opacity:1; transform:none; }
+
+  .menu-eyebrow{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    font-size: 11.5px;
+    font-weight:700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--gold-soft);
+    margin-bottom: 6px;
+  }
+  .menu-eyebrow .step-dot{
+    width:20px; height:20px;
+    border-radius:50%;
+    background: rgba(227,179,65,0.14);
+    border:1px solid var(--gold-dim);
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--display);
+    font-size:12px;
+    color: var(--gold-soft);
+  }
+  .menu-title{
+    font-family: var(--display);
+    font-weight:700;
+    font-size: 22px;
+    margin: 0 0 14px;
+  }
+
+  .choice-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .choice-btn{
+    background: rgba(244,239,224,0.04);
+    border: 1px solid var(--hairline);
+    border-radius: 12px;
+    padding: 14px 10px 12px;
+    color: var(--cream);
+    cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+    transition: border-color .15s ease, background .15s ease, transform .1s ease;
+    text-align:center;
+  }
+  .choice-btn:hover{ background: rgba(244,239,224,0.09); transform: translateY(-1px); }
+  .choice-btn.selected{
+    border-color: var(--gold);
+    background: rgba(227,179,65,0.12);
+    box-shadow: 0 0 0 1px var(--gold) inset;
+  }
+  .choice-btn .icon{ width:30px; height:30px; }
+  .choice-btn .label{ font-size:13px; font-weight:600; }
+
+  .level-grid{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .level-btn{
+    background: rgba(244,239,224,0.04);
+    border:1px solid var(--hairline);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display:flex;
+    align-items:center;
+    gap:14px;
+    cursor:pointer;
+    color: var(--cream);
+    text-align:left;
+    transition: border-color .15s ease, background .15s ease, transform .1s ease;
+  }
+  .level-btn:hover{ background: rgba(244,239,224,0.09); transform: translateY(-1px); }
+  .level-btn.selected{
+    border-color: var(--gold);
+    background: rgba(227,179,65,0.12);
+    box-shadow: 0 0 0 1px var(--gold) inset;
+  }
+  .level-badge{
+    font-family: var(--display);
+    font-weight:800;
+    font-size: 22px;
+    width: 42px; height:42px;
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background: var(--felt-700);
+    color: var(--gold-soft);
+    flex: 0 0 auto;
+  }
+  .level-btn.selected .level-badge{ background: var(--gold); color: var(--felt-950); }
+  .level-text{ display:flex; flex-direction:column; gap:3px; }
+  .level-text .cefr{
+    font-size: 11px;
+    font-weight:700;
+    letter-spacing: 0.06em;
+    color: var(--cream-faint);
+    text-transform: uppercase;
+  }
+  .level-text .name{ font-size: 14px; font-weight:700; line-height:1.35; color: var(--gold-soft); }
+
+  .topic-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 2px 2px 12px;
+    border-bottom: 1px solid var(--hairline);
+    margin-bottom: 10px;
+  }
+  .include-all{
+    display:flex; align-items:center; gap:9px;
+    cursor:pointer;
+    font-size: 13px;
+    font-weight:700;
+    color: var(--cream);
+    user-select:none;
+  }
+  .checkbox{
+    width:18px; height:18px;
+    border-radius:5px;
+    border: 1.5px solid var(--gold-dim);
+    display:flex; align-items:center; justify-content:center;
+    flex: 0 0 auto;
+    background: rgba(244,239,224,0.03);
+  }
+  .checkbox.checked{ background: var(--gold); border-color: var(--gold); }
+  .checkbox.checked::after{
+    content:"";
+    width:9px; height:5px;
+    border-left: 2px solid var(--felt-950);
+    border-bottom: 2px solid var(--felt-950);
+    transform: rotate(-45deg) translate(0,-1px);
+  }
+  .topic-list{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    max-height: 340px;
+    overflow-y:auto;
+    padding-right:4px;
+  }
+  .topic-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding: 9px 8px;
+    border-radius:9px;
+    cursor:pointer;
+    transition: background .12s ease;
+  }
+  .topic-row:hover{ background: rgba(244,239,224,0.06); }
+  .cat-dot{
+    width:8px; height:8px;
+    border-radius:50%;
+    flex: 0 0 auto;
+  }
+  .cat-dot.personal{ background: var(--coral); }
+  .cat-dot.tense{ background: var(--sage); }
+  .cat-dot.structural{ background: var(--periwinkle); }
+  .topic-row .t-label{ font-size: 13.5px; flex:1; }
+
+  .cat-legend{
+    display:flex;
+    gap: 14px;
+    flex-wrap:wrap;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--hairline);
+    font-size:11px;
+    color: var(--cream-faint);
+  }
+  .cat-legend span{ display:flex; align-items:center; gap:6px; }
+
+  .menu-a-col, .menu-b-col{
+    display:flex;
+    flex-direction:column;
+    gap: 12px;
+    flex: 0 0 auto;
+  }
+  .tricky-toggle-box{
+    width: min(320px, 82vw);
+    background: linear-gradient(165deg, var(--felt-800), var(--felt-850));
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 14px 18px;
+    animation: pop-in 0.42s cubic-bezier(.2,1.4,.4,1) both;
+  }
+  .tricky-toggle-box.no-pop{ animation: none; opacity:1; transform:none; }
+  .tricky-toggle-row{
+    display:flex;
+    align-items:center;
+    gap: 10px;
+    cursor:pointer;
+  }
+  .tricky-toggle-label{
+    font-size: 14.5px;
+    font-weight:700;
+    color: var(--cream);
+  }
+  .start-session-box{
+    width: min(320px, 82vw);
+    animation: pop-in 0.42s cubic-bezier(.2,1.4,.4,1) both;
+  }
+  .start-session-box.no-pop{ animation: none; opacity:1; transform:none; }
+  .start-session-box .start-btn{ margin-top:0; }
+
+  .start-btn{
+    margin-top: 16px;
+    width:100%;
+    background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+    color: var(--felt-950);
+    border: none;
+    border-radius: 12px;
+    padding: 14px 0;
+    font-family: var(--display);
+    font-weight:800;
+    font-size: 17px;
+    letter-spacing:0.02em;
+    cursor:pointer;
+    box-shadow: 0 10px 24px -10px rgba(227,179,65,0.55);
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .start-btn:hover{ transform: translateY(-1px); box-shadow: 0 14px 28px -10px rgba(227,179,65,0.7); }
+  .start-btn:active{ transform: translateY(0); }
+
+  /* ---------- GAME SCREEN ---------- */
+  .game-screen{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding: 6px clamp(16px,4vw,40px) 60px;
+  }
+  .game-layout{
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    gap: 32px;
+    width:100%;
+    max-width: 1400px;
+  }
+  .game-table-col{
+    flex: 0 0 340px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap: 4px;
+    background: linear-gradient(165deg, var(--felt-800), var(--felt-850));
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px 22px 28px;
+  }
+  .table-top-row{
+    display:grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items:center;
+    gap: 14px;
+    width:100%;
+    margin-bottom: 14px;
+  }
+  .table-top-row .icon-btn{ grid-column:1; justify-self:start; }
+  .wins-counter{
+    grid-column:3;
+    justify-self:center;
+    display:inline-flex;
+    align-items:center;
+    background: rgba(227,179,65,0.14);
+    border: 1px solid var(--gold-dim);
+    color: var(--gold-soft);
+    font-family: var(--display);
+    font-weight:800;
+    font-size: 20px;
+    letter-spacing: 0.02em;
+    padding: 8px 16px;
+    border-radius: 999px;
+  }
+  .game-content-col{
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  @media (max-width: 900px){
+    .game-layout{ flex-direction:column; align-items:center; max-width:640px; }
+    .game-table-col{ flex:0 0 auto; width:100%; max-width:640px; }
+    .game-content-col{ width:100%; }
+  }
+  .game-meta{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    color: var(--cream-faint);
+    font-size:14px;
+    font-weight:600;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
+    margin-bottom: 10px;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  .game-meta .lvl-chip{
+    background: rgba(227,179,65,0.14);
+    border:1px solid var(--gold-dim);
+    color: var(--gold-soft);
+    padding: 5px 13px;
+    border-radius:999px;
+  }
+
+  .players-row{
+    display:grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items:center;
+    justify-items:center;
+    gap: 14px;
+    margin: 6px 0 18px;
+  }
+  .player-card{
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    border: 1px solid var(--hairline);
+    background: rgba(244,239,224,0.03);
+    min-width: 115px;
+    transition: box-shadow .25s ease, border-color .25s ease, background .25s ease;
+  }
+  .player-card .p-name{
+    font-family: var(--display);
+    font-weight:700;
+    font-size: 23px;
+    background:transparent;
+    border:none;
+    color: var(--cream);
+    text-align:center;
+    width: 100%;
+    cursor:text;
+    border-bottom: 1px dashed transparent;
+  }
+  .player-card .p-name:hover{ border-bottom-color: var(--gold-dim); }
+  .player-card .p-role{
+    font-size: 12.5px;
+    font-weight:600;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color: var(--cream-faint);
+    height: 15px;
+  }
+  .player-card.winner{
+    border-color: var(--gold);
+    background: rgba(227,179,65,0.1);
+    box-shadow: 0 0 0 1px var(--gold) inset, 0 0 30px -8px rgba(227,179,65,0.6);
+  }
+  .player-card.winner .p-role{ color: var(--gold-soft); }
+  .player-card.loser{ opacity:0.72; }
+  .vs-mark{
+    font-family: var(--display);
+    font-weight:800;
+    font-size: 26px;
+    color: var(--cream-faint);
+  }
+
+  .mechanic-stage{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap: 24px;
+    min-height: 156px;
+    margin-bottom: 6px;
+  }
+
+  /* cards */
+  .card-mech{
+    width:94px; height:130px;
+    perspective: 800px;
+  }
+  .card-mech .inner{
+    position:relative;
+    width:100%; height:100%;
+    transform-style: preserve-3d;
+    transition: transform 0.7s cubic-bezier(.3,.7,.3,1);
+  }
+  .card-mech.flipped .inner{ transform: rotateY(180deg); }
+  .card-face{
+    position:absolute; inset:0;
+    border-radius:10px;
+    backface-visibility:hidden;
+    display:flex; align-items:center; justify-content:center;
+    border: 1px solid var(--hairline);
+  }
+  .card-back{
+    background:
+      repeating-linear-gradient(45deg, var(--felt-700) 0 6px, var(--felt-800) 6px 12px);
+    border: 1px solid var(--gold-dim);
+  }
+  .card-front{
+    background: var(--cream);
+    color: var(--felt-950);
+    transform: rotateY(180deg);
+    flex-direction:column;
+    gap:2px;
+    font-family: var(--display);
+  }
+  .card-front .rank{ font-size: 34px; font-weight:800; line-height:1; }
+  .card-front .suit{ font-size: 26px; line-height:1; }
+  .card-front.red{ color: var(--coral); }
+
+  /* dice */
+  .die-mech{
+    width: 96px; height:96px;
+    border-radius: 18px;
+    background: linear-gradient(165deg, var(--felt-700), var(--felt-850));
+    color: var(--gold-soft);
+    display:flex; align-items:center; justify-content:center;
+    font-size: 66px;
+    box-shadow: var(--shadow);
+    border: 2px solid var(--cream);
+  }
+
+  /* coin */
+  .coin-mech{
+    width:104px; height:104px;
+    perspective: 700px;
+  }
+  .coin-mech .inner{
+    width:100%; height:100%;
+    border-radius:50%;
+    position:relative;
+    transform-style:preserve-3d;
+    transition: transform 1s cubic-bezier(.25,.9,.3,1);
+  }
+  .coin-mech.spinning .inner{ animation: coin-spin 0.9s linear; }
+  @keyframes coin-spin{
+    from{ transform: rotateY(0); }
+    to{ transform: rotateY(1440deg); }
+  }
+  .coin-face{
+    position:absolute; inset:0;
+    border-radius:50%;
+    backface-visibility:hidden;
+    display:flex; align-items:center; justify-content:center;
+    background: radial-gradient(circle at 35% 30%, var(--gold-soft), var(--gold) 70%);
+    border: 3px solid var(--felt-950);
+    font-family: var(--display);
+    font-weight:800;
+    font-size:32px;
+    color: var(--felt-950);
+  }
+  .coin-face.back{ transform: rotateY(180deg); }
+
+  /* wheel */
+  .wheel-mech{
+    width:156px; height:156px;
+    position:relative;
+  }
+  .wheel-mech .wheel{
+    width:100%; height:100%;
+    border-radius:50%;
+    border: 3px solid var(--gold);
+    background: conic-gradient(
+      var(--coral) 0deg 45deg, var(--periwinkle) 45deg 90deg,
+      var(--coral) 90deg 135deg, var(--periwinkle) 135deg 180deg,
+      var(--coral) 180deg 225deg, var(--periwinkle) 225deg 270deg,
+      var(--coral) 270deg 315deg, var(--periwinkle) 315deg 360deg
+    );
+    transition: transform 2.2s cubic-bezier(.15,.75,.2,1);
+    display:flex; align-items:center; justify-content:center;
+    position:relative;
+  }
+  .wheel-mech .wheel::after{
+    content:"";
+    position:absolute;
+    width:16px; height:16px;
+    border-radius:50%;
+    background: var(--felt-950);
+    border: 2px solid var(--gold);
+  }
+  .wheel-mech .pointer{
+    position:absolute;
+    top:-11px; left:50%;
+    transform: translateX(-50%);
+    width:0; height:0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 18px solid var(--gold-soft);
+    z-index:2;
+  }
+  .wheel-mech .wl{
+    position:absolute;
+    font-family: var(--display);
+    font-weight:800;
+    font-size: 11px;
+    color: var(--felt-950);
+    top: 50%; left:50%;
+    transform: translate(-50%, -50%);
+    white-space: nowrap;
+  }
+
+  .play-btn{
+    background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+    color: var(--felt-950);
+    border:none;
+    border-radius: 999px;
+    padding: 18px 46px;
+    font-family: var(--display);
+    font-weight:800;
+    font-size: 20px;
+    letter-spacing:0.02em;
+    cursor:pointer;
+    box-shadow: 0 10px 24px -10px rgba(227,179,65,0.55);
+    transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+  }
+  .play-btn:hover{ transform: translateY(-1px); }
+  .play-btn:disabled{ opacity:0.5; cursor:default; transform:none; }
+
+  .result-banner{
+    text-align:center;
+    margin: 18px 0 4px;
+    min-height: 34px;
+  }
+  .result-banner .talk-line{
+    font-family: var(--display);
+    font-weight:800;
+    font-size: 26px;
+    color: var(--gold-soft);
+    animation: rise-in 0.4s ease both;
+  }
+  @keyframes rise-in{
+    from{ opacity:0; transform: translateY(8px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+
+  .round-layout{
+    display:flex;
+    align-items: stretch;
+    gap: 20px;
+    width:100%;
+    max-width: 1180px;
+    margin-top: 10px;
+  }
+  .round-layout .round-card{ flex: 1 1 auto; min-width:0; max-width:none; margin-top:0; }
+  .round-layout .notes-card{ flex: 0 0 260px; margin-top:0; display:flex; flex-direction:column; }
+  .round-layout .notes-card .notes-textarea{ flex:1; min-height: 180px; }
+  @media (max-width: 900px){
+    .round-layout{ flex-direction:column; max-width: 640px; }
+    .round-layout .notes-card{ flex: 1 1 auto; }
+  }
+
+  .round-card{
+    width:100%;
+    max-width: 640px;
+    background: linear-gradient(165deg, var(--felt-800), var(--felt-850));
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 26px 28px 28px;
+    margin-top: 10px;
+    animation: rise-in 0.45s ease both;
+  }
+  .round-card-placeholder{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height: 220px;
+  }
+  .round-placeholder-text{
+    font-family: var(--body);
+    font-size: 19px;
+    font-weight:600;
+    color: var(--cream-faint);
+    text-align:center;
+  }
+  .round-topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom: 14px;
+    gap: 10px;
+    flex-wrap:wrap;
+  }
+  .cat-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    padding: 6px 14px;
+    border-radius:999px;
+    font-size: 13.5px;
+    font-weight:700;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+  }
+  .cat-badge.personal{ background: var(--coral-dim); color: var(--coral); }
+  .cat-badge.tense{ background: var(--sage-dim); color: var(--sage); }
+  .cat-badge.structural{ background: var(--periwinkle-dim); color: var(--periwinkle); }
+  .complexity-tag{
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    font-weight:700;
+    font-size: 13.5px;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    color: var(--felt-950);
+    background: var(--gold-soft);
+    padding: 6px 14px;
+    border-radius:999px;
+    white-space: nowrap;
+  }
+
+  .round-topic{
+    font-family: var(--display);
+    font-weight:800;
+    font-size: clamp(30px, 3.2vw, 42px);
+    line-height: 1.08;
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+  .round-topic:has(+ .subtopic-chips){ margin-bottom: 10px; }
+  .subtopic-chips{
+    display:flex;
+    flex-wrap:wrap;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .subtopic-chip{
+    display:inline-flex;
+    align-items:center;
+    font-family: var(--body);
+    font-weight:700;
+    font-size: 18px;
+    color: var(--gold-soft);
+    background: rgba(227,179,65,0.12);
+    border: 1px solid var(--gold-dim);
+    padding: 5px 13px;
+    border-radius: 999px;
+  }
+
+  .bank-block + .bank-block{ margin-top: 16px; }
+  .bank-label{
+    font-size: 13px;
+    font-weight:700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gold-soft);
+    -webkit-text-stroke: 0.35px #000;
+    text-stroke: 0.35px #000;
+    margin-bottom: 10px;
+  }
+  .bank-chips{
+    display:flex;
+    flex-wrap:wrap;
+    gap: 9px;
+  }
+  .bank-chip{
+    background: rgba(244,239,224,0.06);
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+    padding: 14px 20px;
+    font-size: 27px;
+    font-weight:700;
+    animation: chip-in 0.3s ease both;
+  }
+  .bank-chip:nth-child(1){ animation-delay: 0.02s; }
+  .bank-chip:nth-child(2){ animation-delay: 0.07s; }
+  .bank-chip:nth-child(3){ animation-delay: 0.12s; }
+  .bank-chip:nth-child(4){ animation-delay: 0.17s; }
+  .bank-chip:nth-child(5){ animation-delay: 0.22s; }
+  @keyframes chip-in{
+    from{ opacity:0; transform: translateY(5px) scale(0.96); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+  }
+
+  .gloss-target{
+    cursor: help;
+    text-decoration: underline dotted var(--gold-dim);
+    text-underline-offset: 3px;
+  }
+  .round-topic.gloss-target{ text-decoration-thickness: 1.5px; }
+
+  .es-tooltip{
+    position: fixed;
+    z-index: 60;
+    background: var(--felt-950);
+    border: 1px solid var(--gold);
+    color: var(--gold-soft);
+    font-family: var(--body);
+    font-weight: 700;
+    font-size: 13px;
+    padding: 6px 11px;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, -6px);
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    white-space: nowrap;
+    max-width: 260px;
+    white-space: normal;
+    text-align:center;
+  }
+  .es-tooltip.visible{ opacity:1; transform: translate(-50%, -10px); }
+
+  .round-columns{
+    display:flex;
+    gap: 26px;
+  }
+  .round-col{ flex:1; min-width:0; }
+  .round-col.starters-col{
+    flex: 1.35;
+    padding-left: 26px;
+    border-left: 1px dashed var(--hairline);
+  }
+  .verb-col .bank-chips.vertical{
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .verb-col .bank-chips.vertical .bank-chip{ text-align:left; }
+
+  .question-block .bank-label{ margin-bottom: 11px; }
+  .question-group{ margin-bottom: 14px; }
+  .question-group:last-child{ margin-bottom:0; }
+  .q-type{
+    display:inline-block;
+    font-size: 16px;
+    font-weight:800;
+    color: var(--cream-dim);
+    text-decoration: underline;
+    text-decoration-color: var(--gold-dim);
+    text-underline-offset: 3px;
+    margin-bottom: 8px;
+  }
+  .q-examples{
+    display:flex;
+    flex-wrap:wrap;
+    gap: 8px;
+  }
+  .q-examples.grid-2{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .q-ex{
+    font-size: 22px;
+    font-weight:600;
+    color: var(--cream);
+    background: rgba(244,239,224,0.05);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    padding: 7px 14px;
+  }
+
+  .round-actions{
+    display:flex;
+    gap: 10px;
+    margin-top: 22px;
+  }
+  .btn-primary, .btn-ghost{
+    flex:1;
+    border-radius: 12px;
+    padding: 13px 0;
+    font-weight:700;
+    font-size: 14.5px;
+    cursor:pointer;
+    border: 1px solid var(--hairline);
+    transition: transform .1s ease, background .15s ease;
+  }
+  .btn-primary{
+    background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+    color: var(--felt-950);
+    border:none;
+  }
+  .btn-primary:hover{ transform: translateY(-1px); }
+  .btn-ghost{
+    background: rgba(244,239,224,0.04);
+    color: var(--cream);
+  }
+  .btn-ghost:hover{ background: rgba(244,239,224,0.09); }
+
+  .notes-card{
+    width:100%;
+    max-width: 640px;
+    background: linear-gradient(165deg, var(--felt-800), var(--felt-850));
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px 22px 22px;
+    margin-top: 16px;
+    animation: rise-in 0.45s ease both;
+  }
+  .notes-label{
+    font-size: 11px;
+    font-weight:700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--gold-soft);
+    margin-bottom: 10px;
+  }
+  .notes-textarea{
+    width:100%;
+    min-height: 120px;
+    resize: vertical;
+    background: rgba(244,239,224,0.05);
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: var(--cream);
+    font-family: var(--body);
+    font-weight:600;
+    font-size: clamp(19px, 3vw, 25px);
+    line-height:1.4;
+  }
+  .notes-textarea::placeholder{ color: var(--cream-faint); font-weight:500; }
+
+  /* ---------- GUIDE DRAWER ---------- */
+  .guide-tab{
+    position:fixed;
+    left:0; top: 50%;
+    transform: translateY(-50%) rotate(90deg) translateX(-50%);
+    transform-origin: left center;
+    background: var(--gold);
+    color: var(--felt-950);
+    border:none;
+    padding: 14px 28px;
+    border-radius: 0 0 12px 12px;
+    font-family: var(--display);
+    font-weight:800;
+    font-size: 19px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor:pointer;
+    z-index: 20;
+    box-shadow: var(--shadow);
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+  }
+  .guide-tab:hover{
+    background: var(--gold-soft);
+    box-shadow: 0 14px 30px -10px rgba(227,179,65,0.6);
+  }
+  .guide-drawer{
+    position:fixed;
+    top:0; left:0;
+    height:100vh;
+    width: min(380px, 92vw);
+    background: linear-gradient(180deg, var(--felt-900), var(--felt-950));
+    border-right: 1px solid var(--hairline);
+    box-shadow: 20px 0 50px -20px rgba(0,0,0,0.6);
+    transform: translateX(-100%);
+    transition: transform 0.32s cubic-bezier(.2,.8,.3,1);
+    z-index: 30;
+    display:flex;
+    flex-direction:column;
+  }
+  .guide-drawer.open{ transform: translateX(0); }
+  .guide-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 20px 22px 14px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .guide-head h2{
+    font-family: var(--display);
+    font-size: 22px;
+    margin:0;
+  }
+  .guide-close{
+    background:none; border:none; color: var(--cream-faint);
+    font-size: 22px; cursor:pointer; line-height:1;
+    padding: 4px;
+  }
+  .guide-body{
+    overflow-y:auto;
+    padding: 18px 22px 40px;
+    flex:1;
+  }
+  .guide-section{ margin-bottom: 24px; }
+  .guide-section h3{
+    font-family: var(--display);
+    font-size: 15px;
+    font-weight:700;
+    color: var(--gold-soft);
+    margin: 0 0 10px;
+    letter-spacing:0.02em;
+  }
+  .guide-sentence{
+    font-size: 13.5px;
+    line-height:1.6;
+    color: var(--cream);
+    background: rgba(244,239,224,0.04);
+    border-left: 2px solid var(--gold-dim);
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: 0 8px 8px 0;
+  }
+  .guide-starter{
+    font-size: 13.5px;
+    line-height:1.6;
+    color: var(--cream-faint);
+    margin-bottom: 6px;
+    font-style: italic;
+  }
+  .guide-wordlist{
+    font-size: 13px;
+    line-height:1.7;
+    color: var(--cream-faint);
+  }
+  .guide-wordlist b{ color:var(--cream); font-weight:600; }
+  .guide-overlay{
+    position:fixed; inset:0;
+    background: rgba(0,0,0,0.4);
+    z-index:25;
+    opacity:0;
+    pointer-events:none;
+    transition: opacity 0.3s ease;
+  }
+  .guide-overlay.open{ opacity:1; pointer-events:auto; }
+
+  .visually-hidden{
+    position:absolute; width:1px; height:1px;
+    overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap;
+  }
+
+  @media (max-width: 620px){
+    .players-row{ gap:10px; }
+    .player-card{ min-width:auto; padding:10px 14px; }
+    .mechanic-stage{ gap:18px; }
+    .round-columns{ flex-direction:column; gap:18px; }
+    .round-col.starters-col{
+      padding-left:0;
+      border-left:none;
+      padding-top:16px;
+      border-top: 1px dashed var(--hairline);
+    }
+  }
+</style>
+
+<div class="app" id="app"></div>
+
+<button class="guide-tab" id="guideTab" type="button">Guide</button>
+<div class="guide-overlay" id="guideOverlay"></div>
+<aside class="guide-drawer" id="guideDrawer" aria-label="Companion guide">
+  <div class="guide-head">
+    <h2>Companion Guide</h2>
+    <button class="guide-close" id="guideClose" aria-label="Close guide">&times;</button>
+  </div>
+  <div class="guide-body" id="guideBody"></div>
+</aside>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- DATA ---------------- */
+
+  var WORDS = {
+    verb: ["eat","drink","watch","clean","visit","call","cook","wash","buy","help","play","read","meet","water","greet","tidy","walk","feed","brush","phone","hug","share","wear","carry"],
+    adjective: ["tired","happy","nervous","curious","generous","stubborn","cheerful","quiet","ambitious","thoughtful","restless","confident","humble","playful","serious","patient","clumsy","cautious","gentle","calm","proud","shy","energetic","honest"],
+    adverb: ["quickly","quietly","carefully","happily","nervously","eagerly","rarely","often","suddenly","gently","bravely","calmly","secretly","patiently","loudly","gracefully","hesitantly","confidently","honestly","occasionally"],
+    prepPhrase: ["in the morning","at the park","with a friend","on weekends","after work","before dinner","near the window","during the trip","under the table","by the river","since last year","for two hours","without warning","in the kitchen","at midnight","after school"]
+  };
+
+  var STRUCTURAL = {
+    B: {
+      compoundVerbs: ["get up","look for","give up","turn on","come back","find out","sit down","take off","put away","break down"],
+      connectors: ["because","but","so","however","and","then","also","although"]
+    },
+    C: {
+      compoundVerbs: ["come across","fall back on","get through","look into","carry on","give in","hold off","make up for","run into","stand up for"],
+      connectors: ["on the other hand","that being said","in spite of","notwithstanding","as a result","in light of","for the sake of","given that","albeit","in the meantime"]
+    }
+  };
+
+  var LEVELS = {
+    A: { key:"A", cefr:"A1 – A2", name:"Beginner", complexity:"Sentences with 3-7 words" },
+    B: { key:"B", cefr:"B1 – B2", name:"Intermediate", complexity:"Sentences with 5-10 words" },
+    C: { key:"C", cefr:"C1 – C2", name:"Advanced", complexity:"Sentences with 10-17 words" }
+  };
+
+  var TOPICS = {
+    A: [
+      {id:"family", label:"Family and friends", cat:"personal"},
+      {id:"routine", label:"Daily routine", cat:"personal"},
+      {id:"food", label:"Food and meals", cat:"personal"},
+      {id:"weather", label:"Weather", cat:"personal"},
+      {id:"home", label:"Home / where you live", cat:"personal"},
+      {id:"pets", label:"Pets or animals", cat:"personal"}
+    ],
+    B: [
+      {id:"work", label:"Work or school", cat:"personal", subtopics:["Your job","School","A coworker","A typical day","A new skill","A deadline","Your workspace","A team project","Time management","A recent meeting","Your boss or teacher","A promotion or grade","Working from home","A group assignment","Office politics","A presentation","Networking"]},
+      {id:"hobbies", label:"Hobbies and free time", cat:"personal", subtopics:["Reading","Sports","Gaming","Cooking","Music","Photography","Hiking","Painting","Collecting something","Dancing","Gardening","Crafting","Playing an instrument","Watching sports","Board games","Fishing","Yoga"]},
+      {id:"travel", label:"Travel", cat:"personal", subtopics:["A favorite trip","Local travel","Travel abroad","Packing","Transportation","A road trip","A dream destination","Travel mishaps","Staying in hotels","Trying local food","Getting lost","Language barriers","Souvenirs","Airports","Camping","A beach vacation","Visiting family far away"]},
+      {id:"weekend", label:"Weekend plans", cat:"personal", subtopics:["Family time","Errands","Going out","Relaxing at home","Exercise","Watching movies","Visiting friends","Sleeping in","A day trip","Cleaning the house","Cooking a big meal","A hobby project","Sports games","Brunch","Yard work","A concert or event","Volunteering"]},
+      {id:"likes", label:"Likes/dislikes with a reason", cat:"personal", subtopics:["Food","Movies","Music genre","Sports","Clothing/fashion","TV shows","Books","Restaurants","Video games","Hobbies","Seasons","Animals","Colors","Vacation spots","Apps or gadgets","Types of weather","Celebrities"]},
+      {id:"plans", label:"Simple plans (‘going to’)", cat:"tense", subtopics:["This weekend","Next vacation","Tonight","Next week","A future goal","Next month","A special occasion","Next year","A trip","A project","A celebration","A visit with family","A new hobby","After class or work","This summer","A holiday"]},
+      {id:"story", label:"Simple storytelling (past simple)", cat:"tense", subtopics:["A recent trip","Something funny","A mistake","A surprise","A lesson learned","A childhood memory","A first day","An unexpected event","A close call","A celebration","Getting lost","Meeting someone new","A gift you received","A time you helped someone","An accident","A rainy day","Losing something"]},
+      {id:"compoundB", label:"Compound verbs", cat:"structural", structural:"compoundVerbs"},
+      {id:"connB", label:"Connectors", cat:"structural", structural:"connectors"}
+    ],
+    C: [
+      {id:"art", label:"Art, music, or creative pursuits", cat:"personal", subtopics:["Painting or drawing","Music","Writing","Photography","Film or theater","Dance","Sculpture","Design","Poetry","Architecture","Fashion design","Street art","Crafting","Singing","Filmmaking","Ceramics","Digital art"]},
+      {id:"values", label:"Personal values", cat:"personal", subtopics:["Honesty","Family","Independence","Ambition","Community","Loyalty","Creativity","Curiosity","Compassion","Resilience","Fairness","Gratitude","Humility","Discipline","Generosity","Authenticity"]},
+      {id:"formative", label:"Formative experiences", cat:"personal", subtopics:["A mentor","A challenge overcome","A place you lived","A turning point","A lesson learned","A failure","A risk that paid off","A relationship","A loss","An achievement","A move to a new city","A first job","A difficult year","An inspiring teacher","A cultural experience","Overcoming fear"]},
+      {id:"whatif", label:"What would you do if…", cat:"personal", subtopics:["The lottery","A new career","Living abroad","Unlimited time","A superpower","No fear of failure","An extra day each week","Unlimited money","A second chance","Starting over","Time travel","Meeting your hero","Having to relocate","Losing your job","Learning any skill instantly","One year left"]},
+      {id:"compare", label:"Comparing past vs. present", cat:"tense", subtopics:["Technology","Your city","Your routine","Relationships","Priorities","Work-life balance","Communication","Education","Entertainment","Values","Fashion trends","Family dynamics","Career expectations","Social media","Health habits","Free time"]},
+      {id:"goals", label:"Life goals (‘will,’ aspirational)", cat:"tense", subtopics:["Career","Travel","Family","Personal growth","Finances","Health","Education","Relationships","Creative projects","Community involvement","Homeownership","Starting a business","Learning a language","Retirement","Giving back","Work-life balance"]},
+      {id:"complexstory", label:"Complex storytelling", cat:"tense", subtopics:["A turning point","An unexpected challenge","A relationship","A risk you took","A hard lesson","A difficult decision","A moment of doubt","A personal victory","A misunderstanding","A leap of faith","A betrayal","A reconciliation","A major change","A moment of clarity","Facing a fear","A sacrifice you made"]},
+      {id:"compoundC", label:"Compound verbs (advanced)", cat:"structural", structural:"compoundVerbs"},
+      {id:"connC", label:"Connectors (advanced)", cat:"structural", structural:"connectors"}
+    ]
+  };
+
+  var CAT_LABEL = { personal:"Personal / conversational", tense:"Tense-focused", structural:"Structural practice" };
+  var CAT_BADGE_LABEL = { personal:"Personal", tense:"Tense", structural:"Structural" };
+
+  var GLOSSARY_ES = {
+    eat:"comer", drink:"beber", watch:"mirar", clean:"limpiar", visit:"visitar", call:"llamar",
+    cook:"cocinar", wash:"lavar", buy:"comprar", help:"ayudar", play:"jugar", read:"leer",
+    meet:"encontrarse con", water:"regar", greet:"saludar", tidy:"ordenar", walk:"caminar",
+    feed:"alimentar", brush:"cepillar", phone:"llamar por teléfono", hug:"abrazar",
+    share:"compartir", wear:"llevar puesto", carry:"cargar",
+
+    tired:"cansado/a", happy:"feliz", nervous:"nervioso/a", curious:"curioso/a",
+    generous:"generoso/a", stubborn:"terco/a", cheerful:"alegre", quiet:"callado/a",
+    ambitious:"ambicioso/a", thoughtful:"considerado/a", restless:"inquieto/a",
+    confident:"seguro/a de sí mismo", humble:"humilde", playful:"juguetón/juguetona",
+    serious:"serio/a", patient:"paciente", clumsy:"torpe", cautious:"cauteloso/a",
+    gentle:"amable", calm:"tranquilo/a", proud:"orgulloso/a", shy:"tímido/a",
+    energetic:"enérgico/a", honest:"honesto/a",
+
+    quickly:"rápidamente", quietly:"silenciosamente", carefully:"cuidadosamente",
+    happily:"felizmente", nervously:"nerviosamente", eagerly:"con entusiasmo",
+    rarely:"raramente", often:"a menudo", suddenly:"de repente", gently:"suavemente",
+    bravely:"valientemente", calmly:"con calma", secretly:"en secreto",
+    patiently:"pacientemente", loudly:"en voz alta", gracefully:"con gracia",
+    hesitantly:"con vacilación", confidently:"con confianza", honestly:"honestamente",
+    occasionally:"ocasionalmente",
+
+    "in the morning":"por la mañana", "at the park":"en el parque", "with a friend":"con un amigo/a",
+    "on weekends":"los fines de semana", "after work":"después del trabajo",
+    "before dinner":"antes de la cena", "near the window":"cerca de la ventana",
+    "during the trip":"durante el viaje", "under the table":"debajo de la mesa",
+    "by the river":"junto al río", "since last year":"desde el año pasado",
+    "for two hours":"por dos horas", "without warning":"sin previo aviso",
+    "in the kitchen":"en la cocina", "at midnight":"a medianoche", "after school":"después de la escuela",
+
+    "get up":"levantarse", "look for":"buscar", "give up":"rendirse", "turn on":"encender",
+    "come back":"regresar", "find out":"descubrir", "sit down":"sentarse", "take off":"quitarse",
+    "put away":"guardar", "break down":"descomponerse",
+    because:"porque", but:"pero", so:"así que", however:"sin embargo", and:"y",
+    then:"entonces", also:"también", although:"aunque",
+
+    "come across":"toparse con", "fall back on":"recurrir a", "get through":"superar",
+    "look into":"investigar", "carry on":"continuar", "give in":"ceder", "hold off":"posponer",
+    "make up for":"compensar", "run into":"encontrarse con", "stand up for":"defender",
+    "on the other hand":"por otro lado", "that being said":"dicho esto", "in spite of":"a pesar de",
+    notwithstanding:"no obstante", "as a result":"como resultado", "in light of":"en vista de",
+    "for the sake of":"por el bien de", "given that":"dado que", albeit:"aunque",
+    "in the meantime":"mientras tanto",
+
+    "your job":"tu trabajo", school:"la escuela", "a coworker":"un compañero de trabajo",
+    "a typical day":"un día típico", "a new skill":"una nueva habilidad", "a deadline":"una fecha límite",
+    "your workspace":"tu espacio de trabajo", "a team project":"un proyecto en equipo",
+    "time management":"la gestión del tiempo", "a recent meeting":"una reunión reciente",
+    "your boss or teacher":"tu jefe o profesor", "a promotion or grade":"un ascenso o una calificación",
+    "working from home":"trabajar desde casa", "a group assignment":"una tarea en grupo",
+    "office politics":"la política de oficina", "a presentation":"una presentación", networking:"hacer contactos",
+
+    reading:"leer", gaming:"los videojuegos", photography:"la fotografía", hiking:"el senderismo",
+    "collecting something":"coleccionar algo", dancing:"bailar", gardening:"la jardinería",
+    crafting:"las manualidades", "playing an instrument":"tocar un instrumento",
+    "watching sports":"ver deportes", "board games":"los juegos de mesa", fishing:"la pesca", yoga:"el yoga",
+
+    "a favorite trip":"un viaje favorito", "local travel":"los viajes locales",
+    "travel abroad":"viajar al extranjero", packing:"hacer la maleta", transportation:"el transporte",
+    "a road trip":"un viaje por carretera", "a dream destination":"un destino soñado",
+    "travel mishaps":"contratiempos de viaje", "staying in hotels":"quedarse en hoteles",
+    "trying local food":"probar comida local", "getting lost":"perderse",
+    "language barriers":"las barreras del idioma", souvenirs:"los recuerdos de viaje",
+    airports:"los aeropuertos", camping:"acampar", "a beach vacation":"unas vacaciones en la playa",
+    "visiting family far away":"visitar a la familia lejana",
+
+    "family time":"tiempo en familia", errands:"los mandados", "going out":"salir",
+    "relaxing at home":"relajarse en casa", exercise:"el ejercicio", "watching movies":"ver películas",
+    "visiting friends":"visitar amigos", "sleeping in":"dormir hasta tarde", "a day trip":"una excursión de un día",
+    "cleaning the house":"limpiar la casa", "cooking a big meal":"cocinar una gran comida",
+    "a hobby project":"un proyecto de pasatiempo", "sports games":"los partidos deportivos",
+    brunch:"el brunch", "yard work":"el trabajo en el jardín", "a concert or event":"un concierto o evento",
+    volunteering:"hacer voluntariado",
+
+    food:"la comida", movies:"las películas", "music genre":"el género musical",
+    "clothing/fashion":"la ropa/moda", "tv shows":"las series de televisión", books:"los libros",
+    restaurants:"los restaurantes", "video games":"los videojuegos", hobbies:"los pasatiempos",
+    seasons:"las estaciones", animals:"los animales", colors:"los colores",
+    "vacation spots":"los destinos de vacaciones", "apps or gadgets":"aplicaciones o gadgets",
+    "types of weather":"los tipos de clima", celebrities:"los famosos",
+
+    "this weekend":"este fin de semana", "next vacation":"las próximas vacaciones", tonight:"esta noche",
+    "next week":"la próxima semana", "a future goal":"una meta futura", "next month":"el próximo mes",
+    "a special occasion":"una ocasión especial", "next year":"el próximo año", "a trip":"un viaje",
+    "a project":"un proyecto", "a celebration":"una celebración", "a visit with family":"una visita a la familia",
+    "a new hobby":"un nuevo pasatiempo", "after class or work":"después de clase o del trabajo",
+    "this summer":"este verano", "a holiday":"un día festivo",
+
+    "a recent trip":"un viaje reciente", "something funny":"algo gracioso", "a mistake":"un error",
+    "a surprise":"una sorpresa", "a lesson learned":"una lección aprendida",
+    "a childhood memory":"un recuerdo de infancia", "a first day":"un primer día",
+    "an unexpected event":"un evento inesperado", "a close call":"un momento de peligro evitado",
+    "meeting someone new":"conocer a alguien nuevo", "a gift you received":"un regalo que recibiste",
+    "a time you helped someone":"una vez que ayudaste a alguien", "an accident":"un accidente",
+    "a rainy day":"un día lluvioso", "losing something":"perder algo",
+
+    "painting or drawing":"pintar o dibujar", writing:"escribir", "film or theater":"el cine o el teatro",
+    dance:"la danza", sculpture:"la escultura", design:"el diseño", poetry:"la poesía",
+    architecture:"la arquitectura", "fashion design":"el diseño de moda", "street art":"el arte callejero",
+    singing:"cantar", filmmaking:"hacer películas", ceramics:"la cerámica", "digital art":"el arte digital",
+
+    honesty:"la honestidad", family:"la familia", independence:"la independencia", ambition:"la ambición",
+    community:"la comunidad", loyalty:"la lealtad", creativity:"la creatividad", curiosity:"la curiosidad",
+    compassion:"la compasión", resilience:"la resiliencia", fairness:"la justicia", gratitude:"la gratitud",
+    humility:"la humildad", discipline:"la disciplina", generosity:"la generosidad", authenticity:"la autenticidad",
+
+    "a mentor":"un mentor", "a challenge overcome":"un desafío superado",
+    "a place you lived":"un lugar donde viviste", "a turning point":"un punto de inflexión",
+    "a failure":"un fracaso", "a risk that paid off":"un riesgo que valió la pena",
+    "a relationship":"una relación", "a loss":"una pérdida", "an achievement":"un logro",
+    "a move to a new city":"una mudanza a una nueva ciudad", "a first job":"un primer trabajo",
+    "a difficult year":"un año difícil", "an inspiring teacher":"un profesor inspirador",
+    "a cultural experience":"una experiencia cultural", "overcoming fear":"superar el miedo",
+
+    "the lottery":"la lotería", "a new career":"una nueva carrera", "living abroad":"vivir en el extranjero",
+    "unlimited time":"tiempo ilimitado", "a superpower":"un superpoder", "no fear of failure":"sin miedo al fracaso",
+    "an extra day each week":"un día extra cada semana", "unlimited money":"dinero ilimitado",
+    "a second chance":"una segunda oportunidad", "starting over":"empezar de nuevo",
+    "time travel":"viajar en el tiempo", "meeting your hero":"conocer a tu héroe",
+    "having to relocate":"tener que mudarte", "losing your job":"perder tu trabajo",
+    "learning any skill instantly":"aprender cualquier habilidad al instante",
+    "one year left":"solo un año de vida",
+
+    technology:"la tecnología", "your city":"tu ciudad", "your routine":"tu rutina",
+    relationships:"las relaciones", priorities:"las prioridades",
+    "work-life balance":"el equilibrio entre el trabajo y la vida", communication:"la comunicación",
+    education:"la educación", entertainment:"el entretenimiento", values:"los valores",
+    "fashion trends":"las tendencias de moda", "family dynamics":"la dinámica familiar",
+    "career expectations":"las expectativas profesionales", "social media":"las redes sociales",
+    "health habits":"los hábitos de salud", "free time":"el tiempo libre",
+
+    career:"la carrera", travel:"los viajes", "personal growth":"el crecimiento personal",
+    finances:"las finanzas", health:"la salud", "creative projects":"los proyectos creativos",
+    "community involvement":"la participación comunitaria", homeownership:"ser propietario de una casa",
+    "starting a business":"iniciar un negocio", "learning a language":"aprender un idioma",
+    retirement:"la jubilación", "giving back":"retribuir a la comunidad",
+
+    "an unexpected challenge":"un desafío inesperado", "a risk you took":"un riesgo que tomaste",
+    "a hard lesson":"una lección difícil", "a difficult decision":"una decisión difícil",
+    "a moment of doubt":"un momento de duda", "a personal victory":"una victoria personal",
+    "a misunderstanding":"un malentendido", "a leap of faith":"un salto de fe",
+    "a betrayal":"una traición", "a reconciliation":"una reconciliación",
+    "a major change":"un cambio importante", "a moment of clarity":"un momento de claridad",
+    "facing a fear":"enfrentar un miedo", "a sacrifice you made":"un sacrificio que hiciste"
+  };
+
+  var TOPIC_ES = {
+    family:"La familia y los amigos", routine:"La rutina diaria", food:"La comida y las comidas",
+    weather:"El clima", home:"El hogar / dónde vives", pets:"Las mascotas o los animales",
+
+    work:"El trabajo o la escuela", hobbies:"Los pasatiempos y el tiempo libre", travel:"Los viajes",
+    weekend:"Los planes de fin de semana", likes:"Gustos y disgustos, con una razón",
+    plans:"Planes sencillos ('ir a')", story:"Narración sencilla (pasado simple)",
+    compoundB:"Verbos compuestos", connB:"Conectores",
+
+    art:"El arte, la música o las actividades creativas", values:"Los valores personales",
+    formative:"Experiencias formativas", whatif:"¿Qué harías si...?",
+    compare:"Comparar el pasado con el presente", goals:"Metas de vida ('will', aspiracional)",
+    complexstory:"Narración compleja", compoundC:"Verbos compuestos (avanzado)",
+    connC:"Conectores (avanzado)"
+  };
+
+  var QUESTION_STARTERS = [
+    { type:"To Be", examples:["Are you…?","Is he…?","Are we…?"] },
+    { type:"To Do", examples:["Do you…?","Does she…?","Do they…?"] },
+    { type:"Wh- Questions", grid:true, examples:["What do…?","Who are…?","Why do…?","Where is…?","When do…?","How is…?"] }
+  ];
+
+  var MECHANICS = [
+    { id:"cards", label:"Cards" },
+    { id:"dice", label:"Dice" },
+    { id:"wheel", label:"Wheel" },
+    { id:"coin", label:"Coin" }
+  ];
+
+  var GUIDE_EXAMPLES = {
+    A: [
+      "I eat breakfast every morning.",
+      "My sister calls our grandmother on Sundays.",
+      "The dog watches the door when I leave."
+    ],
+    B: [
+      "I usually eat breakfast quickly before work.",
+      "My neighbor’s cat sleeps near the window all afternoon.",
+      "We’re going to visit my cousins next weekend."
+    ],
+    C: [
+      "By the time I moved abroad, I had already learned to live independently.",
+      "On the other hand, my brother, who always played it safe, decided to take the leap and start his own business.",
+      "I used to be nervous about public speaking, but I’ve gradually become someone who genuinely enjoys it."
+    ]
+  };
+
+  var GUIDE_STARTERS = [
+    "The turning point for me was when…",
+    "Looking back, I realize that…",
+    "If I had to choose one value that guides me, it would be…",
+    "A few years from now, I hope to…",
+    "Compared to how things used to be, now…"
+  ];
+
+  /* ---------------- UTIL ---------------- */
+
+  function sample(arr, n, exclude){
+    var pool = exclude ? arr.filter(function(w){ return exclude.indexOf(w) === -1; }) : arr.slice();
+    var out = [];
+    var copy = pool.slice();
+    n = Math.min(n, copy.length);
+    for (var i=0;i<n;i++){
+      var idx = Math.floor(Math.random()*copy.length);
+      out.push(copy.splice(idx,1)[0]);
+    }
+    return out;
+  }
+  function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+  function chance(p){ return Math.random() < p; }
+  function el(tag, cls, html){
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html !== undefined) e.innerHTML = html;
+    return e;
+  }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"]/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];
+    });
+  }
+  /* ---------------- SPANISH GLOSS TOOLTIP ---------------- */
+
+  var glossTip = document.createElement("div");
+  glossTip.className = "es-tooltip";
+  document.body.appendChild(glossTip);
+
+  function positionGlossTip(target){
+    var r = target.getBoundingClientRect();
+    var x = Math.min(Math.max(r.left + r.width/2, 70), window.innerWidth - 70);
+    glossTip.style.left = x + "px";
+    glossTip.style.top = Math.max(r.top - 10, 10) + "px";
+  }
+  function showGlossTip(target, text){
+    glossTip.textContent = text;
+    positionGlossTip(target);
+    glossTip.classList.add("visible");
+  }
+  function hideGlossTip(){
+    glossTip.classList.remove("visible");
+  }
+
+  window.addEventListener("scroll", hideGlossTip, true);
+  window.addEventListener("resize", hideGlossTip);
+
+  function attachGloss(target, spanishText){
+    if (!spanishText) return;
+    target.classList.add("gloss-target");
+    var pressTimer = null;
+    target.addEventListener("mouseenter", function(){ showGlossTip(target, spanishText); });
+    target.addEventListener("mouseleave", hideGlossTip);
+    target.addEventListener("touchstart", function(e){
+      pressTimer = setTimeout(function(){ showGlossTip(target, spanishText); }, 420);
+    }, { passive:true });
+    ["touchend","touchcancel","touchmove"].forEach(function(evt){
+      target.addEventListener(evt, function(){
+        clearTimeout(pressTimer);
+        hideGlossTip();
+      });
+    });
+  }
+
+  /* ---------------- STATE ---------------- */
+
+  var state = {
+    screen: "setup",
+    mechanic: null,
+    level: null,
+    topicIds: null,
+    wrongToggle: false,
+    stepsShown: 1,
+    players: ["Player 1", "Player 2"],
+    round: 0,
+    winnerIdx: null,
+    animating: false,
+    currentRound: null,
+    mechResult: null,
+    notes: "",
+    hasPlayedOnce: false,
+    menusRevealed: {},
+    wins: [0, 0]
+  };
+
+  /* ---------------- ICONS ---------------- */
+
+  var ICONS = {
+    cards: '<svg class="icon" viewBox="0 0 32 32" fill="none"><rect x="7" y="4" width="14" height="20" rx="2.5" stroke="currentColor" stroke-width="2" transform="rotate(-8 14 14)"/><rect x="12" y="7" width="14" height="20" rx="2.5" fill="currentColor" opacity="0.15" stroke="currentColor" stroke-width="2"/></svg>',
+    dice: '<svg class="icon" viewBox="0 0 32 32" fill="none"><rect x="5" y="5" width="22" height="22" rx="5" stroke="currentColor" stroke-width="2"/><circle cx="11" cy="11" r="1.8" fill="currentColor"/><circle cx="21" cy="11" r="1.8" fill="currentColor"/><circle cx="11" cy="21" r="1.8" fill="currentColor"/><circle cx="21" cy="21" r="1.8" fill="currentColor"/><circle cx="16" cy="16" r="1.8" fill="currentColor"/></svg>',
+    wheel: '<svg class="icon" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="11" stroke="currentColor" stroke-width="2"/><path d="M16 5 A11 11 0 0 1 16 27" fill="currentColor" opacity="0.2"/><circle cx="16" cy="16" r="2" fill="currentColor"/></svg>',
+    coin: '<svg class="icon" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="11" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="6.5" stroke="currentColor" stroke-width="1.4" opacity="0.6"/></svg>'
+  };
+
+  /* ---------------- RENDER: ROOT ---------------- */
+
+  var app = document.getElementById("app");
+
+  function render(){
+    hideGlossTip();
+    app.innerHTML = "";
+    app.appendChild(renderTopbar());
+    if (state.screen === "setup") app.appendChild(renderSetup());
+    else app.appendChild(renderGame());
+  }
+
+  function renderTopbar(){
+    var bar = el("div","topbar");
+    var brand = el("div","brand",
+      '<span class="mark">Charla y Suerte</span>' +
+      '<span class="sub">CCB Two-Player Drill</span>');
+    bar.appendChild(brand);
+    return bar;
+  }
+
+  function startNewSession(){
+    state.screen = "setup";
+    state.level = null; state.topicIds = null; state.winnerIdx = null;
+    state.currentRound = null; state.round = 0; state.mechResult = null; state.notes = "";
+    state.hasPlayedOnce = false;
+    state.menusRevealed = {};
+    state.wins = [0, 0];
+    state.stepsShown = state.mechanic ? 2 : 1;
+    render();
+  }
+
+  /* ---------------- RENDER: SETUP ---------------- */
+
+  function renderSetup(){
+    var wrap = el("div","setup-screen");
+    var intro = el("div","setup-intro", "<h1>Set the table.</h1>");
+    wrap.appendChild(intro);
+
+    var rowWrap = el("div","menu-row-wrap");
+    var row = el("div","menu-row");
+    row.id = "menuRow";
+
+    var lastVisibleIsNew = !state.menusRevealed[STEP_LETTERS[state.stepsShown - 1]];
+
+    var aCol = el("div","menu-a-col");
+    aCol.appendChild(menuA());
+    aCol.appendChild(buildTrickyToggle());
+    row.appendChild(aCol);
+    if (state.stepsShown >= 2){
+      var bCol = el("div","menu-b-col");
+      bCol.appendChild(menuB());
+      if (state.level) bCol.appendChild(buildStartSessionBox());
+      row.appendChild(bCol);
+    }
+    if (state.stepsShown >= 3) row.appendChild(menuC());
+
+    rowWrap.appendChild(row);
+    wrap.appendChild(rowWrap);
+
+    if (lastVisibleIsNew){
+      requestAnimationFrame(function(){
+        var lastCard = row.lastElementChild;
+        if (lastCard) lastCard.scrollIntoView({ behavior:"smooth", inline:"end", block:"nearest" });
+      });
+    }
+
+    return wrap;
+  }
+
+  function advanceStep(min){
+    if (state.stepsShown < min) state.stepsShown = min;
+  }
+
+  function isNewlyRevealed(key){
+    if (state.menusRevealed[key]) return false;
+    state.menusRevealed[key] = true;
+    return true;
+  }
+
+  var STEP_LETTERS = ["A","B","C"];
+
+  function collapseTo(step){
+    state.stepsShown = step;
+    for (var i = step; i < STEP_LETTERS.length; i++){
+      delete state.menusRevealed[STEP_LETTERS[i]];
+    }
+    delete state.menusRevealed["start"];
+  }
+
+  function menuA(){
+    var card = el("div","menu-card" + (isNewlyRevealed("A") ? "" : " no-pop"));
+    card.appendChild(el("div","menu-eyebrow",'<span class="step-dot">1</span> Game Mechanic'));
+    card.appendChild(el("div","menu-title","How do you decide who talks?"));
+    var grid = el("div","choice-grid");
+    MECHANICS.forEach(function(m){
+      var btn = el("button","choice-btn" + (state.mechanic===m.id ? " selected":""));
+      btn.type = "button";
+      btn.innerHTML = ICONS[m.id] + '<span class="label">'+m.label+'</span>';
+      btn.addEventListener("click", function(){
+        if (state.mechanic === m.id){
+          state.mechanic = null;
+          state.level = null; state.topicIds = null; state.wrongToggle = false;
+          collapseTo(1);
+        } else {
+          state.mechanic = m.id;
+          advanceStep(2);
+        }
+        render();
+      });
+      grid.appendChild(btn);
+    });
+    card.appendChild(grid);
+    return card;
+  }
+
+  function menuB(){
+    var card = el("div","menu-card" + (isNewlyRevealed("B") ? "" : " no-pop"));
+    card.appendChild(el("div","menu-eyebrow",'<span class="step-dot">2</span> Level'));
+    card.appendChild(el("div","menu-title","What fluency level?"));
+    var grid = el("div","level-grid");
+    ["A","B","C"].forEach(function(k){
+      var lv = LEVELS[k];
+      var btn = el("button","level-btn" + (state.level===k ? " selected":""));
+      btn.type = "button";
+      btn.innerHTML =
+        '<span class="level-badge">'+k+'</span>' +
+        '<span class="level-text"><span class="cefr">'+lv.cefr+' · '+lv.name+'</span>' +
+        '<span class="name">'+lv.complexity+'</span></span>';
+      btn.addEventListener("click", function(){
+        if (state.level === k){
+          state.level = null; state.topicIds = null; state.wrongToggle = false;
+          collapseTo(2);
+        } else {
+          state.level = k;
+          state.topicIds = new Set(TOPICS[k].map(function(t){return t.id;}));
+          if (LEVELS[k].key === "A") state.wrongToggle = false;
+          advanceStep(3);
+        }
+        render();
+      });
+      grid.appendChild(btn);
+    });
+    card.appendChild(grid);
+    return card;
+  }
+
+  function menuC(){
+    var card = el("div","menu-card wide" + (isNewlyRevealed("C") ? "" : " no-pop"));
+    card.appendChild(el("div","menu-eyebrow",'<span class="step-dot">3</span> Topic Scope'));
+    card.appendChild(el("div","menu-title","Which topics are in play?"));
+
+    var topics = TOPICS[state.level];
+    var allChecked = topics.every(function(t){ return state.topicIds.has(t.id); });
+
+    var header = el("div","topic-header");
+    var includeAll = el("label","include-all");
+    includeAll.innerHTML = '<span class="checkbox'+(allChecked?" checked":"")+'"></span> Include All';
+    includeAll.addEventListener("click", function(e){
+      e.preventDefault();
+      if (allChecked){
+        state.topicIds = new Set();
+      } else {
+        state.topicIds = new Set(topics.map(function(t){return t.id;}));
+      }
+      render();
+    });
+    header.appendChild(includeAll);
+    header.appendChild(el("span","", topics.filter(function(t){return state.topicIds.has(t.id);}).length + " / " + topics.length));
+    card.appendChild(header);
+
+    var list = el("div","topic-list");
+    topics.forEach(function(t){
+      var checked = state.topicIds.has(t.id);
+      var row = el("div","topic-row");
+      row.innerHTML =
+        '<span class="checkbox'+(checked?" checked":"")+'"></span>' +
+        '<span class="cat-dot '+t.cat+'"></span>' +
+        '<span class="t-label">'+escapeHtml(t.label)+'</span>';
+      row.addEventListener("click", function(){
+        if (state.topicIds.has(t.id)) state.topicIds.delete(t.id);
+        else state.topicIds.add(t.id);
+        render();
+      });
+      list.appendChild(row);
+      attachGloss(row.querySelector(".t-label"), TOPIC_ES[t.id]);
+    });
+    card.appendChild(list);
+
+    var legend = el("div","cat-legend");
+    ["personal","tense","structural"].forEach(function(c){
+      legend.appendChild(el("span","",'<span class="cat-dot '+c+'"></span>'+CAT_LABEL[c]));
+    });
+    card.appendChild(legend);
+
+    return card;
+  }
+
+  function buildStartSessionBox(){
+    var isNewStart = isNewlyRevealed("start");
+    var box = el("div","start-session-box" + (isNewStart ? "" : " no-pop"));
+    var startBtn = el("button","start-btn","Start Session");
+    startBtn.type = "button";
+    startBtn.addEventListener("click", function(){
+      state.screen = "game";
+      state.round = 0;
+      state.winnerIdx = null;
+      state.currentRound = null;
+      render();
+    });
+    box.appendChild(startBtn);
+    return box;
+  }
+
+  function buildTrickyToggle(){
+    var isNewTricky = isNewlyRevealed("tricky");
+    var box = el("div","tricky-toggle-box" + (isNewTricky ? "" : " no-pop"));
+    var row = el("label","tricky-toggle-row");
+    row.innerHTML =
+      '<span class="checkbox' + (state.wrongToggle ? " checked" : "") + '"></span>' +
+      '<span class="tricky-toggle-label">Respuestas de La Trampa?</span>';
+    row.addEventListener("click", function(e){
+      e.preventDefault();
+      state.wrongToggle = !state.wrongToggle;
+      render();
+    });
+    box.appendChild(row);
+    return box;
+  }
+
+  /* ---------------- ROUND LOGIC ---------------- */
+
+  var CONFUSABLE = { adjective:"adverb", adverb:"adjective", prepPhrase:"adjective" };
+
+  function drawBank(category, size, wrongChance){
+    var hasWrong = wrongChance > 0 && chance(wrongChance) && size > 1;
+    var correctCount = hasWrong ? size - 1 : size;
+    var words = sample(WORDS[category], correctCount).map(function(w){ return {text:w, wrong:false}; });
+    if (hasWrong){
+      var wrongSrc = category === "verb" ? "adjective" : CONFUSABLE[category];
+      var wrongWord = pick(WORDS[wrongSrc].filter(function(w){ return words.indexOf(w)===-1; }));
+      var pos = Math.floor(Math.random()*(words.length+1));
+      words.splice(pos, 0, {text:wrongWord, wrong:true});
+    }
+    return words;
+  }
+
+  var BANK_TITLES = { verb:"Verb bank", adjective:"Adjective bank", adverb:"Adverb bank", prepPhrase:"Prepositional phrase bank" };
+
+  function drawRound(){
+    var level = state.level;
+    var topics = TOPICS[level].filter(function(t){ return state.topicIds.has(t.id); });
+    var topic = pick(topics.length ? topics : TOPICS[level]);
+    var banks = [];
+
+    if (topic.cat === "structural"){
+      var pool = STRUCTURAL[level][topic.structural];
+      var size = level === "C" ? 5 : (chance(0.8) ? 4 : 3);
+      banks.push({ title: topic.structural === "compoundVerbs" ? "Compound verb bank" : "Connector bank", words: sample(pool, size).map(function(w){return {text:w, wrong:false};}) });
+    } else if (level === "A"){
+      banks.push({ title: BANK_TITLES.verb, words: drawBank("verb", 5, 0) });
+    } else if (level === "B"){
+      var cat = pick(["adjective","adverb","prepPhrase"]);
+      var sz = chance(0.8) ? 4 : 3;
+      var wc = (sz === 4 && state.wrongToggle) ? 0.35 : 0;
+      banks.push({ title: BANK_TITLES[cat], words: drawBank(cat, sz, wc) });
+    } else {
+      var cats = sample(["adjective","adverb","prepPhrase"], 2);
+      cats.forEach(function(c){
+        var wc = state.wrongToggle ? 0.8 : 0;
+        banks.push({ title: BANK_TITLES[c], words: drawBank(c, 5, wc) });
+      });
+    }
+
+    var subtopics = topic.subtopics ? sample(topic.subtopics, 5) : null;
+
+    return { topic: topic, banks: banks, complexity: LEVELS[level].complexity, level: level, subtopics: subtopics };
+  }
+
+  /* ---------------- RENDER: GAME ---------------- */
+
+  function renderGame(){
+    var wrap = el("div","game-screen");
+    var gameLayout = el("div","game-layout");
+    var tableCol = el("div","game-table-col");
+
+    var topRow = el("div","table-top-row");
+    var backBtn = el("button","icon-btn","← New Session");
+    backBtn.type = "button";
+    backBtn.addEventListener("click", startNewSession);
+    topRow.appendChild(backBtn);
+    topRow.appendChild(el("div","wins-counter", state.wins[0] + "-" + state.wins[1]));
+    tableCol.appendChild(topRow);
+
+    var meta = el("div","game-meta");
+    meta.innerHTML = '<span class="lvl-chip">Level '+state.level+'</span>';
+    tableCol.appendChild(meta);
+
+    var players = el("div","players-row");
+    [0,1].forEach(function(i){
+      var isWinner = state.winnerIdx === i;
+      var isLoser = state.winnerIdx !== null && state.winnerIdx !== i;
+      var pc = el("div","player-card" + (isWinner?" winner":"") + (isLoser?" loser":""));
+      var nameInput = el("input","p-name");
+      nameInput.type = "text";
+      nameInput.value = state.players[i];
+      nameInput.maxLength = 20;
+      nameInput.addEventListener("change", function(){
+        state.players[i] = nameInput.value.trim() || ("Player " + (i+1));
+      });
+      var role = el("div","p-role", isWinner ? "Winner" : (isLoser ? "Talks" : "&nbsp;"));
+      pc.appendChild(nameInput);
+      pc.appendChild(role);
+      players.appendChild(pc);
+      if (i===0) players.appendChild(el("div","vs-mark","VS"));
+    });
+    tableCol.appendChild(players);
+
+    var stage = el("div","mechanic-stage");
+    stage.id = "mechStage";
+    stage.appendChild(buildMechanicVisual());
+    tableCol.appendChild(stage);
+
+    var playBtn = el("button","play-btn", state.currentRound ? "Play Next Round" : "Play Round");
+    playBtn.type = "button";
+    playBtn.disabled = state.animating;
+    playBtn.addEventListener("click", playRound);
+    tableCol.appendChild(playBtn);
+
+    var banner = el("div","result-banner");
+    if (state.winnerIdx !== null && !state.animating){
+      var loserName = state.players[1 - state.winnerIdx];
+      banner.innerHTML = '<div class="talk-line">🗣 ' + escapeHtml(loserName) + ' talks</div>';
+    }
+    tableCol.appendChild(banner);
+
+    gameLayout.appendChild(tableCol);
+
+    if (state.hasPlayedOnce){
+      var contentCol = el("div","game-content-col");
+      var layout = el("div","round-layout");
+      if (state.currentRound && !state.animating){
+        layout.appendChild(renderRoundCard(state.currentRound));
+      } else {
+        layout.appendChild(renderRoundCardPlaceholder());
+      }
+      layout.appendChild(renderNotesCard());
+      contentCol.appendChild(layout);
+      gameLayout.appendChild(contentCol);
+    }
+
+    wrap.appendChild(gameLayout);
+    return wrap;
+  }
+
+  function renderNotesCard(){
+    var card = el("div","notes-card");
+    card.appendChild(el("div","notes-label","Notes / Corrections"));
+    var textarea = el("textarea","notes-textarea");
+    textarea.value = state.notes;
+    textarea.addEventListener("input", function(){
+      state.notes = textarea.value;
+    });
+    card.appendChild(textarea);
+    return card;
+  }
+
+  function renderRoundCardPlaceholder(){
+    var card = el("div","round-card round-card-placeholder");
+    card.appendChild(el("div","round-placeholder-text","Drawing the next round…"));
+    return card;
+  }
+
+  function buildMechanicVisual(){
+    var m = state.mechanic;
+    if (state.mechResult && !state.animating){
+      return buildSettledVisual(m, state.mechResult);
+    }
+    if (m === "cards"){
+      var g = el("div","","");
+      g.style.display = "flex"; g.style.gap = "34px";
+      g.appendChild(cardEl(0));
+      g.appendChild(cardEl(1));
+      return g;
+    }
+    if (m === "dice"){
+      var g2 = el("div","","");
+      g2.style.display = "flex"; g2.style.gap = "34px";
+      g2.appendChild(dieEl(0));
+      g2.appendChild(dieEl(1));
+      return g2;
+    }
+    if (m === "coin"){
+      return coinEl();
+    }
+    return wheelEl();
+  }
+
+  function cardEl(i){
+    var wrap = el("div","card-mech"); wrap.id = "card"+i;
+    wrap.innerHTML =
+      '<div class="inner"><div class="card-face card-back"></div>' +
+      '<div class="card-face card-front" id="cardFront'+i+'"></div></div>';
+    return wrap;
+  }
+  function dieEl(i){
+    var d = el("div","die-mech","⚀"); d.id = "die"+i;
+    return d;
+  }
+  function coinEl(){
+    var wrap = el("div","coin-mech"); wrap.id = "coin0";
+    wrap.innerHTML =
+      '<div class="inner"><div class="coin-face front">H</div><div class="coin-face back">T</div></div>';
+    return wrap;
+  }
+  var WHEEL_SLICE_PLAYER = [0,1,0,1,0,1,0,1];
+  var WHEEL_SLICE_MIDS = [22.5,67.5,112.5,157.5,202.5,247.5,292.5,337.5];
+  var WHEEL_LABEL_POS = [
+    {left:62.8, top:19.2}, {left:80.8, top:37.2},
+    {left:80.8, top:62.8}, {left:62.8, top:80.8},
+    {left:37.2, top:80.8}, {left:19.2, top:62.8},
+    {left:19.2, top:37.2}, {left:37.2, top:19.2}
+  ];
+
+  function buildWheelLabels(){
+    var html = "";
+    for (var i=0;i<8;i++){
+      var p = WHEEL_LABEL_POS[i];
+      html += '<span class="wl" style="top:'+p.top+'%;left:'+p.left+'%;">'+initials(WHEEL_SLICE_PLAYER[i])+'</span>';
+    }
+    return html;
+  }
+
+  function wheelEl(){
+    var wrap = el("div","wheel-mech");
+    wrap.innerHTML =
+      '<div class="pointer"></div>' +
+      '<div class="wheel" id="wheel0">' +
+      buildWheelLabels() +
+      '</div>';
+    return wrap;
+  }
+  var DIE_FACES = ["⚀","⚁","⚂","⚃","⚄","⚅"];
+
+  function buildSettledVisual(m, res){
+    if (m === "cards"){
+      var g = document.createElement("div");
+      g.style.display = "flex"; g.style.gap = "34px";
+      [{r:res.r0,s:res.s0},{r:res.r1,s:res.s1}].forEach(function(c){
+        var wrap = el("div","card-mech flipped");
+        wrap.innerHTML =
+          '<div class="inner" style="transition:none">' +
+          '<div class="card-face card-back"></div>' +
+          '<div class="card-face card-front'+(c.s.red?" red":"")+'">' +
+          '<span class="rank">'+c.r+'</span><span class="suit">'+c.s.s+'</span></div></div>';
+        g.appendChild(wrap);
+      });
+      return g;
+    }
+    if (m === "dice"){
+      var g2 = document.createElement("div");
+      g2.style.display = "flex"; g2.style.gap = "34px";
+      [res.v0, res.v1].forEach(function(v){
+        g2.appendChild(el("div","die-mech", DIE_FACES[v-1]));
+      });
+      return g2;
+    }
+    if (m === "coin"){
+      var wrap = el("div","coin-mech");
+      wrap.innerHTML =
+        '<div class="inner" style="transition:none; transform:rotateY('+(res.winner===0?0:180)+'deg)">' +
+        '<div class="coin-face front">H</div><div class="coin-face back">T</div></div>';
+      return wrap;
+    }
+    var wrap2 = el("div","wheel-mech");
+    wrap2.innerHTML =
+      '<div class="pointer"></div>' +
+      '<div class="wheel" style="transition:none; transform:rotate('+res.deg+'deg)">' +
+      buildWheelLabels() +
+      '</div>';
+    return wrap2;
+  }
+
+  function initials(i){
+    var n = (state.players[i] || ("Player " + (i+1))).trim();
+    var parts = n.split(/\s+/).filter(Boolean);
+    var result = parts.length >= 2 ? (parts[0][0] + parts[parts.length-1][0]) : n.slice(0,2);
+    return escapeHtml(result.toUpperCase());
+  }
+
+  var RANKS = ["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
+  var SUITS = [{s:"♠",red:false},{s:"♣",red:false},{s:"♥",red:true},{s:"♦",red:true}];
+
+  function playRound(){
+    if (state.animating) return;
+    state.animating = true;
+    state.winnerIdx = null;
+    state.currentRound = null;
+    state.mechResult = null;
+    state.notes = "";
+    render();
+
+    var m = state.mechanic;
+    if (m === "cards") animateCards();
+    else if (m === "dice") animateDice();
+    else if (m === "coin") animateCoin();
+    else animateWheel();
+  }
+
+  function finishRound(winnerIdx){
+    state.winnerIdx = winnerIdx;
+    state.wins[winnerIdx] += 1;
+    state.round += 1;
+    state.currentRound = drawRound();
+    state.animating = false;
+    state.hasPlayedOnce = true;
+    render();
+  }
+
+  function animateCards(){
+    var r0 = pick(RANKS), r1 = pick(RANKS);
+    var tries = 0;
+    while (RANKS.indexOf(r0) === RANKS.indexOf(r1) && tries < 8){ r1 = pick(RANKS); tries++; }
+    var s0 = pick(SUITS), s1 = pick(SUITS);
+    setTimeout(function(){
+      var c0 = document.getElementById("card0"), c1 = document.getElementById("card1");
+      var f0 = document.getElementById("cardFront0"), f1 = document.getElementById("cardFront1");
+      if (!c0) return;
+      f0.className = "card-face card-front" + (s0.red ? " red":"");
+      f0.innerHTML = '<span class="rank">'+r0+'</span><span class="suit">'+s0.s+'</span>';
+      f1.className = "card-face card-front" + (s1.red ? " red":"");
+      f1.innerHTML = '<span class="rank">'+r1+'</span><span class="suit">'+s1.s+'</span>';
+      c0.classList.add("flipped");
+      c1.classList.add("flipped");
+      setTimeout(function(){
+        var winner = RANKS.indexOf(r0) > RANKS.indexOf(r1) ? 0 : 1;
+        state.mechResult = { r0:r0, s0:s0, r1:r1, s1:s1 };
+        finishRound(winner);
+      }, 750);
+    }, 150);
+  }
+
+  function animateDice(){
+    var d0 = document.getElementById("die0"), d1 = document.getElementById("die1");
+    var ticks = 0;
+    var timer = setInterval(function(){
+      if (d0) d0.textContent = pick(DIE_FACES);
+      if (d1) d1.textContent = pick(DIE_FACES);
+      ticks++;
+      if (ticks > 9){
+        clearInterval(timer);
+        var v0 = 1+Math.floor(Math.random()*6), v1 = 1+Math.floor(Math.random()*6);
+        var tries = 0;
+        while (v0 === v1 && tries < 6){ v1 = 1+Math.floor(Math.random()*6); tries++; }
+        if (d0) d0.textContent = DIE_FACES[v0-1];
+        if (d1) d1.textContent = DIE_FACES[v1-1];
+        setTimeout(function(){
+          state.mechResult = { v0:v0, v1:v1 };
+          finishRound(v0 > v1 ? 0 : 1);
+        }, 500);
+      }
+    }, 80);
+  }
+
+  function animateCoin(){
+    var coin = document.getElementById("coin0");
+    if (!coin) return;
+    var winner = Math.random() < 0.5 ? 0 : 1;
+    coin.classList.add("spinning");
+    setTimeout(function(){
+      var inner = coin.querySelector(".inner");
+      inner.style.transition = "none";
+      inner.style.transform = winner === 0 ? "rotateY(0deg)" : "rotateY(180deg)";
+      setTimeout(function(){
+        state.mechResult = { winner:winner };
+        finishRound(winner);
+      }, 350);
+    }, 900);
+  }
+
+  function animateWheel(){
+    var wheel = document.getElementById("wheel0");
+    if (!wheel) return;
+    var winner = Math.random() < 0.5 ? 0 : 1;
+    var duration = 2 + Math.random() * 3;
+    var spins = 3 + Math.floor(Math.random() * 4);
+    var base = 360 * spins;
+    var winnerMids = WHEEL_SLICE_MIDS.filter(function(mid, i){ return WHEEL_SLICE_PLAYER[i] === winner; });
+    var targetOffset = pick(winnerMids);
+    var finalDeg = base + targetOffset;
+    wheel.style.transition = "none";
+    wheel.style.transform = "rotate(0deg)";
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        wheel.style.transition = "transform " + duration.toFixed(2) + "s cubic-bezier(.1,.7,.15,1)";
+        wheel.style.transform = "rotate("+finalDeg+"deg)";
+      });
+    });
+    setTimeout(function(){
+      state.mechResult = { deg: finalDeg, winner:winner };
+      finishRound(winner);
+    }, duration * 1000 + 100);
+  }
+
+  function renderRoundCard(round){
+    var card = el("div","round-card");
+    var top = el("div","round-topbar");
+    top.appendChild(el("span","cat-badge "+round.topic.cat, CAT_BADGE_LABEL[round.topic.cat]));
+    top.appendChild(el("span","complexity-tag", round.complexity));
+    card.appendChild(top);
+    var topicEl = el("div","round-topic", escapeHtml(round.topic.label));
+    card.appendChild(topicEl);
+    attachGloss(topicEl, TOPIC_ES[round.topic.id]);
+
+    if (round.subtopics){
+      var subtopicWrap = el("div","subtopic-chips");
+      round.subtopics.forEach(function(st){
+        var chip = el("span","subtopic-chip", escapeHtml(st));
+        subtopicWrap.appendChild(chip);
+        attachGloss(chip, GLOSSARY_ES[st.toLowerCase()]);
+      });
+      card.appendChild(subtopicWrap);
+    }
+
+    function buildBankBlock(bank, vertical){
+      var block = el("div","bank-block");
+      block.appendChild(el("div","bank-label", bank.title));
+      var chips = el("div","bank-chips" + (vertical ? " vertical" : ""));
+      bank.words.forEach(function(w){
+        var chip = el("span","bank-chip", escapeHtml(w.text));
+        chips.appendChild(chip);
+        attachGloss(chip, GLOSSARY_ES[w.text.toLowerCase()]);
+      });
+      block.appendChild(chips);
+      return block;
+    }
+
+    function buildStartersBlock(){
+      var qBlock = el("div","question-block");
+      qBlock.appendChild(el("div","bank-label","Question Starters"));
+      QUESTION_STARTERS.forEach(function(q){
+        var group = el("div","question-group");
+        group.appendChild(el("div","q-type", q.type));
+        var examplesWrap = el("div","q-examples" + (q.grid ? " grid-2" : ""));
+        q.examples.forEach(function(ex){
+          examplesWrap.appendChild(el("span","q-ex", ex));
+        });
+        group.appendChild(examplesWrap);
+        qBlock.appendChild(group);
+      });
+      return qBlock;
+    }
+
+    if (round.level === "A"){
+      var cols = el("div","round-columns");
+      var verbCol = el("div","round-col verb-col");
+      verbCol.appendChild(buildBankBlock(round.banks[0], true));
+      var startersCol = el("div","round-col starters-col");
+      startersCol.appendChild(buildStartersBlock());
+      cols.appendChild(verbCol);
+      cols.appendChild(startersCol);
+      card.appendChild(cols);
+    } else {
+      round.banks.forEach(function(bank){
+        card.appendChild(buildBankBlock(bank, false));
+      });
+    }
+
+    var actions = el("div","round-actions");
+    var again = el("button","btn-primary","Play Next Round");
+    again.type="button";
+    again.addEventListener("click", playRound);
+    var reroll = el("button","btn-ghost","Redraw This Round");
+    reroll.type="button";
+    reroll.addEventListener("click", function(){
+      state.currentRound = drawRound();
+      state.notes = "";
+      render();
+    });
+    actions.appendChild(again);
+    actions.appendChild(reroll);
+    card.appendChild(actions);
+
+    return card;
+  }
+
+  /* ---------------- GUIDE DRAWER ---------------- */
+
+  var guideTab = document.getElementById("guideTab");
+  var guideDrawer = document.getElementById("guideDrawer");
+  var guideOverlay = document.getElementById("guideOverlay");
+  var guideClose = document.getElementById("guideClose");
+  var guideBody = document.getElementById("guideBody");
+
+  function openGuide(){
+    guideBody.innerHTML = buildGuideHtml();
+    guideDrawer.classList.add("open");
+    guideOverlay.classList.add("open");
+  }
+  function closeGuide(){
+    guideDrawer.classList.remove("open");
+    guideOverlay.classList.remove("open");
+  }
+  guideTab.addEventListener("click", openGuide);
+  guideClose.addEventListener("click", closeGuide);
+  guideOverlay.addEventListener("click", closeGuide);
+
+  function buildGuideHtml(){
+    var lvl = state.level || "A";
+    var html = "";
+    html += '<div class="guide-section"><h3>Level '+lvl+'</h3>';
+    html += '<span class="complexity-tag">'+escapeHtml(LEVELS[lvl].complexity)+'</span></div>';
+
+    html += '<div class="guide-section"><h3>Example Sentences</h3>';
+    GUIDE_EXAMPLES[lvl].forEach(function(s){
+      html += '<div class="guide-sentence">'+escapeHtml(s)+'</div>';
+    });
+    html += '</div>';
+
+    if (lvl === "C"){
+      html += '<div class="guide-section"><h3>Sentence Starters</h3>';
+      GUIDE_STARTERS.forEach(function(s){
+        html += '<div class="guide-starter">'+escapeHtml(s)+'</div>';
+      });
+      html += '</div>';
+    }
+
+    html += '<div class="guide-section"><h3>Quick Word Lists</h3><div class="guide-wordlist">';
+    html += '<b>Verbs:</b> '+WORDS.verb.slice(0,10).join(", ")+'<br><br>';
+    html += '<b>Adjectives:</b> '+WORDS.adjective.slice(0,10).join(", ")+'<br><br>';
+    html += '<b>Adverbs:</b> '+WORDS.adverb.slice(0,10).join(", ")+'<br><br>';
+    html += '<b>Preposition phrases:</b> '+WORDS.prepPhrase.slice(0,8).join(", ")+'</div></div>';
+
+    var struct = STRUCTURAL[lvl === "A" ? "B" : lvl];
+    html += '<div class="guide-section"><h3>Structural Practice ('+(lvl==="A"?"B":lvl)+')</h3><div class="guide-wordlist">';
+    html += '<b>Compound verbs:</b> '+struct.compoundVerbs.slice(0,8).join(", ")+'<br><br>';
+    html += '<b>Connectors:</b> '+struct.connectors.slice(0,8).join(", ")+'</div></div>';
+
+    return html;
+  }
+
+  render();
+})();
+</script>

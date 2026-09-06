@@ -1,0 +1,39 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "rossmann-dash",
+      "runtimeExecutable": "C:\\Users\\Brian\\AppData\\Local\\Microsoft\\WindowsApps\\python.exe",
+      "runtimeArgs": ["C:\\Users\\Brian\\Desktop\\Claude Projects\\Rossmann Project\\app.py"],
+      "port": 8050
+    },
+    {
+      "name": "labor-market-dash",
+      "runtimeExecutable": "C:\\Users\\Brian\\Desktop\\Claude Projects\\Labor Market Project\\.venv\\Scripts\\python.exe",
+      "runtimeArgs": ["C:\\Users\\Brian\\Desktop\\Claude Projects\\Labor Market Project\\app\\app.py"],
+      "port": 8051
+    },
+    {
+      "name": "hospital-streamlit",
+      "runtimeExecutable": "C:\\Users\\Brian\\AppData\\Local\\Microsoft\\WindowsApps\\python.exe",
+      "runtimeArgs": [
+        "-m", "streamlit", "run",
+        "C:\\Users\\Brian\\Desktop\\Claude Projects\\Synthetic Hospital DB Project\\streamlit_app\\app.py",
+        "--server.port", "8052",
+        "--server.headless", "true"
+      ],
+      "port": 8052
+    },
+    {
+      "name": "synthetic-hospital-db-repo",
+      "runtimeExecutable": "C:\\Users\\Brian\\AppData\\Local\\Microsoft\\WindowsApps\\python.exe",
+      "runtimeArgs": [
+        "-m", "streamlit", "run",
+        "C:\\Users\\Brian\\Desktop\\Claude Projects\\synthetic-hospital-db\\app\\app.py",
+        "--server.port", "8053",
+        "--server.headless", "true"
+      ],
+      "port": 8053
+    }
+  ]
+}

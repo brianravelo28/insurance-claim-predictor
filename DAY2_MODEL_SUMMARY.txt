@@ -1,0 +1,39 @@
+
+LightGBM REGRESSION MODEL - SUMMARY
+
+DATASET:
+  Training samples: 80,000
+  Test samples: 20,000
+  Features: 10
+
+MODEL CONFIGURATION:
+  Boosting rounds: 85
+  Learning rate: 0.05
+  Max depth: 7
+  Early stopping: Yes (patience=30)
+
+PERFORMANCE:
+  Train RMSE: 1.3070
+  Test RMSE: 1.3197
+  Train R²: 0.0672
+  Test R²: 0.0579
+  CV R²: 0.0513 +/- 0.0026
+
+TOP FEATURES:
+  1. building_age_years: 481
+  2. latitude: 433
+  3. longitude: 425
+
+PREDICTIONS:
+  Total predictions: 100,000
+  Mean amount: $42,481
+  Median amount: $39,864
+  Std dev: $16,863
+
+GENERATED FILES:
+  [OK] 08_feature_importance.png
+  [OK] 09_predictions_vs_actual.png
+  [OK] 10_residuals.png
+  [OK] 11_residual_distribution.png
+  [OK] insurance_day2_predictions.csv
+  [OK] DAY2_MODEL_SUMMARY.txt

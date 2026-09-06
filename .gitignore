@@ -1,0 +1,41 @@
+# Large data files (keep CSV references but exclude large files)
+*.csv.zip
+*.pkl
+*.h5
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.log
+*.tmp
+.cache/
+
+# Model artifacts (optional - uncomment if very large)
+# *.joblib
+# *.pkl
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Cache
+.pytest_cache/
+.coverage
