@@ -45,17 +45,6 @@
         "--server.headless", "true"
       ],
       "port": 8054
-    },
-    {
-      "name": "mlb-predictors",
-      "runtimeExecutable": "C:\\Users\\Brian\\AppData\\Local\\Microsoft\\WindowsApps\\python.exe",
-      "runtimeArgs": [
-        "-m", "streamlit", "run",
-        "C:\\Users\\Brian\\Desktop\\Claude Projects\\Insurance Project\\mlb-predictors\\app.py",
-        "--server.port", "8055",
-        "--server.headless", "true"
-      ],
-      "port": 8055
     }
   ]
 }

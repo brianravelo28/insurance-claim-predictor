@@ -1,7 +1,0 @@
-streamlit
-lightgbm
-scikit-learn
-pandas
-numpy
-pybaseball
-plotly
