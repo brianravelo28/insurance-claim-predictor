@@ -60,13 +60,19 @@ METRICS = json.loads((DEPLOY / "model_metrics.json").read_text())
 REPORT = json.loads((DEPLOY / "build_report.json").read_text())
 _abl = DEPLOY / "ablation_year_control.json"
 ABLATION = json.loads(_abl.read_text()) if _abl.exists() else None
-booster = lgb.Booster(model_file=str(DEPLOY / "model.txt"))
-FEATURES = METRICS["features"]
+# The claim estimator uses the loss-year-control variant (train_year_model.py) with its own out-of-sample calibration.
+booster = lgb.Booster(model_file=str(DEPLOY / "model_year.txt"))
+YEAR_MODEL = json.loads((DEPLOY / "year_control_model.json").read_text())
+FEATURES = YEAR_MODEL["features"]
 _log("data loaded")
 
 YEAR_MIN, YEAR_MAX, N_CLAIMS = AGG["year_min"], AGG["year_max"], AGG["n_claims"]
 RESID_Q10, RESID_Q50, RESID_Q90 = (AGG["residual_quantiles"][k] for k in ("q10", "q50", "q90"))
 UNDERPREDICT = float(np.exp(RESID_Q50))  # actual median claim / predicted, on years the model never saw
+EST_Q10, EST_Q50, EST_Q90 = (YEAR_MODEL["residual_quantiles"][k] for k in ("q10", "q50", "q90"))
+EST_UNDER = float(np.exp(EST_Q50))  # the same correction, for the year-control model behind the estimator
+CLAIMS_BY_YEAR = {int(k): v for k, v in YEAR_MODEL["claims_by_year"].items()}
+YEAR_DEFAULT = max(y for y, n in CLAIMS_BY_YEAR.items() if n >= 1000)  # latest year with a solid sample
 LOG_TICKS = [1e3, 3e3, 1e4, 3e4, 1e5, 3e5, 1e6, 3e6]
 
 # Short forms for chart x-axis ticks only; full names stay in the dropdown, table, and hover.
@@ -161,20 +167,29 @@ def distance_bin(dist):
     return 4 if dist <= 25 else 3 if dist <= 50 else 2 if dist <= 100 else 1
 
 
-def predict_payout(county, occupancy, flood, age, elevated, wind, dist):
-    """Estimated payout in constant 2025 dollars for one hypothetical claim."""
+def _feature_row(county, occupancy, flood, age, elevated, wind, dist, year):
     storm = wind is not None and wind > 0
     info = COUNTY_INFO[county]
-    row = {
-        "building_age_years": age, "building_age_missing": 0, "is_elevated": int(elevated),
+    return {
+        "yearOfLoss": year, "building_age_years": age, "building_age_missing": 0, "is_elevated": int(elevated),
         "flood_zone_encoded": FLOOD_CODE[flood], "occupancy_group_encoded": OCC_CODE[occupancy],
         "distance_bin": distance_bin(dist) if storm else -1, "storm_category_encoded": wind_category(wind),
         "historical_storm_freq": info["freq"], "latitude": info["lat"], "longitude": info["lon"],
         "distance_from_track_mi": dist if storm else np.nan, "storm_wind_speed_kt": wind if storm else np.nan,
         "days_to_storm": 0.0 if storm else np.nan,
     }
-    x = pd.DataFrame([row])[FEATURES]
-    return float(np.expm1(booster.predict(x, num_threads=1))[0])
+
+
+def predict_batch(scenarios):
+    """Raw model estimates (constant 2025 dollars) for many hypothetical claims in a single model call."""
+    x = pd.DataFrame([_feature_row(**s) for s in scenarios])[FEATURES]
+    return np.expm1(booster.predict(x, num_threads=1))
+
+
+def predict_payout(county, occupancy, flood, age, elevated, wind, dist, year):
+    """Raw model estimate, in constant 2025 dollars, for one hypothetical claim with a loss in `year`."""
+    return float(predict_batch([dict(county=county, occupancy=occupancy, flood=flood, age=age, elevated=elevated,
+                                     wind=wind, dist=dist, year=year)])[0])
 
 
 # ---------------------------------------------------------- app + style ----
@@ -397,8 +412,8 @@ def ablation_block():
             f"But a loss-year control on its own recovers {recovered_text} of that ({year_only:.3f}), and adding the year on top of age "
             f"barely moves the score ({with_year:.3f}). Most of what age contributes is also available from the calendar year: old "
             "buildings appear mostly in recent, larger claims, so the two can't be cleanly separated. Importance is split between "
-            "correlated features, so read those columns loosely. The production model keeps age and no year control, because a year "
-            "feature cannot extrapolate beyond the years in the data.")
+            "correlated features, so read those columns loosely. The headline model above keeps age and no year control; the claim "
+            "estimator uses the year-control version, and a year feature cannot extrapolate beyond the years in the data.")
     return html.Div([html.H3("Is building age just a stand-in for the year?", style={"margin": "0 0 8px"}), table,
                      html.Div(note, className="note")], className="card", style={"marginTop": "12px"})
 
@@ -448,6 +463,9 @@ def tab5_layout():
                                             clearable=False, style={"width": "260px"})),
             field("Flood zone", dcc.Dropdown(id="t5-flood", options=[f for f in FLOOD_ORDER if f in FLOOD_CODE],
                                              value=FLOOD_ORDER[2], clearable=False, style={"width": "330px"})),
+            field("Loss year", html.Div(dcc.Slider(id="t5-year", min=YEAR_MIN, max=YEAR_MAX, step=1, value=YEAR_DEFAULT,
+                                                   marks={y: str(y) for y in range(1980, YEAR_MAX, 10)}),
+                                        style={"width": "300px", "paddingBottom": "18px"})),
             field("Building age (years)", html.Div(dcc.Slider(id="t5-age", min=0, max=100, step=1, value=30,
                                                              marks={0: "0", 25: "25", 50: "50", 75: "75", 100: "100"}),
                                                    style={"width": "260px", "paddingBottom": "18px"})),
@@ -461,9 +479,15 @@ def tab5_layout():
         ], className="controls card"),
         html.Div(id="t5-kpis", className="kpi-row", style={"margin": "12px 0"}),
         html.Div(dcc.Graph(id="t5-chart"), className="card"),
-        html.Div("An estimate for a paid claim, in 2025 dollars. The model's raw output is scaled up by the median out-of-sample under-prediction, "
-                 "and with R² of about 0.2 the range is wide by design: it covers the middle 80% of out-of-sample errors. Storm inputs are the wind speed at the storm's closest track point and its distance from the claim; "
-                 "location uses the county's average claim coordinates.", className="note"),
+        html.Div(dcc.Graph(id="t5-year-chart"), className="card", style={"marginTop": "12px"}),
+        html.Div(f"An estimate for a paid claim, in constant 2025 dollars. This uses a version of the model that also knows the loss year "
+                 f"(R² {YEAR_MODEL['r2_log']:.2f}, vs {METRICS['headline_year_grouped_cv']['r2_log']:.2f} without it), so building age is "
+                 f"not standing in for the era. The raw output is scaled up by its median out-of-sample under-prediction ({EST_UNDER:.2f}x), and the "
+                 "range covers the middle 80% of its out-of-sample errors, so it is wide by design. Payouts have risen faster than inflation, so "
+                 f"the year matters; the default is {YEAR_DEFAULT}, the latest year with a large sample, and it was dominated by Helene and Milton. "
+                 "Years with few claims (2019, 2021, 2025-26) are noisy, and the model cannot extrapolate beyond the years in the data. "
+                 "Storm inputs are the wind speed at the storm's closest track point and its distance from the claim; location uses the "
+                 "county's average claim coordinates.", className="note"),
     ])
 
 
@@ -659,33 +683,53 @@ def update_tab4(years, counties, occs, floods, storms):
 app.callback(Output("t4-dyn", "children"), *FILTERS)(update_tab4)
 
 
-@app.callback(Output("t5-kpis", "children"), Output("t5-chart", "figure"),
-              Input("t5-county", "value"), Input("t5-occ", "value"), Input("t5-flood", "value"), Input("t5-age", "value"),
-              Input("t5-elev", "value"), Input("t5-wind", "value"), Input("t5-dist", "value"))
-def update_tab5(county, occ, flood, age, elev, wind, dist):
-    raw = predict_payout(county, occ, flood, age, bool(elev), wind, dist)
-    est = raw * UNDERPREDICT  # correct the model's under-prediction on unseen years (see Model tab)
-    lo, hi = raw * np.exp(RESID_Q10), raw * np.exp(RESID_Q90)
-    kpis = [kpi("Typical payout (median)", money(est), "for a claim like this, 2025 $"),
+def update_tab5(county, occ, flood, age, elev, wind, dist, year):
+    grid = np.arange(35, 155, 5)
+    years = np.arange(YEAR_MIN, YEAR_MAX + 1)
+    base = dict(county=county, occupancy=occ, flood=flood, age=age, elevated=bool(elev), dist=dist)
+    preds = predict_batch([dict(base, wind=int(w), year=year) for w in grid] + [dict(base, wind=0, year=year)]
+                          + [dict(base, wind=wind, year=int(yr)) for yr in years] + [dict(base, wind=wind, year=year)])
+    wind_raw, no_storm_raw = preds[:len(grid)], preds[len(grid)]
+    raws, raw = preds[len(grid) + 1:len(grid) + 1 + len(years)], float(preds[-1])
+    est = raw * EST_UNDER  # correct the model's under-prediction on unseen years (see Model tab)
+    lo, hi = raw * np.exp(EST_Q10), raw * np.exp(EST_Q90)
+    kpis = [kpi("Typical payout (median)", money(est), f"for a claim like this in {year}, 2025 $"),
             kpi("80% of claims like this", f"{money(lo)} to {money(hi)}", "from out-of-sample errors"),
             kpi("Storm", "None nearby" if wind == 0 else STORM_ORDER[wind_category(wind) + 1], f"{wind} kt at {dist} mi" if wind else "no storm within range")]
-    grid = np.arange(35, 155, 5)
-    ys = [predict_payout(county, occ, flood, age, bool(elev), w, dist) * UNDERPREDICT for w in grid]
-    no_storm = predict_payout(county, occ, flood, age, bool(elev), 0, dist) * UNDERPREDICT
+
     traces = [
-        go.Scatter(x=grid, y=ys, mode="lines", name="With a storm nearby", line=dict(color=BLUE),
+        go.Scatter(x=grid, y=wind_raw * EST_UNDER, mode="lines", name="With a storm nearby", line=dict(color=BLUE),
                    hovertemplate="%{x} kt: %{y:$,.0f}<extra></extra>"),
-        go.Scatter(x=[grid[0], grid[-1]], y=[no_storm, no_storm], mode="lines", name="No storm nearby",
+        go.Scatter(x=[grid[0], grid[-1]], y=[no_storm_raw * EST_UNDER] * 2, mode="lines", name="No storm nearby",
                    line=dict(color=INK_3, dash="dash"), hovertemplate="No storm: %{y:$,.0f}<extra></extra>"),
     ]
     if wind > 0:
         traces.append(go.Scatter(x=[wind], y=[est], mode="markers", name="Selected", marker=dict(color=ORANGE, size=12),
                                  hovertemplate="Selected: %{y:$,.0f}<extra></extra>"))
     fig = go.Figure(traces)
-    style_fig(fig, f"Typical payout as storm strength changes ({dist} mi from the track)", 380)
+    style_fig(fig, f"Typical payout as storm strength changes ({dist} mi from the track, {year} loss)", 380)
     fig.update_xaxes(title="Storm wind speed at closest approach (kt)")
     fig.update_yaxes(title="Typical payout (2025 $)", tickprefix="$")
-    return kpis, fig
+
+    counts =[CLAIMS_BY_YEAR.get(int(yr), 0) for yr in years]
+    yfig = go.Figure([
+        go.Scatter(x=years, y=raws * np.exp(EST_Q90), mode="lines", line=dict(width=0), showlegend=False, hoverinfo="skip"),
+        go.Scatter(x=years, y=raws * np.exp(EST_Q10), mode="lines", line=dict(width=0), fill="tonexty",
+                   fillcolor="rgba(42,120,214,0.12)", name="80% range", hoverinfo="skip"),
+        go.Scatter(x=years, y=raws * EST_UNDER, mode="lines", name="Typical payout", line=dict(color=BLUE), customdata=counts,
+                   hovertemplate="%{x}: %{y:$,.0f} (%{customdata:,.0f} claims that year)<extra></extra>"),
+        go.Scatter(x=[year], y=[est], mode="markers", name="Selected year", marker=dict(color=ORANGE, size=12),
+                   hovertemplate="Selected: %{y:$,.0f}<extra></extra>"),
+    ])
+    style_fig(yfig, "The same claim across loss years: how much payouts have grown beyond inflation", 380)
+    log_dollar_axis(yfig, "y", "Typical payout (2025 $)")
+    return kpis, fig, yfig
+
+
+app.callback(Output("t5-kpis", "children"), Output("t5-chart", "figure"), Output("t5-year-chart", "figure"),
+             Input("t5-county", "value"), Input("t5-occ", "value"), Input("t5-flood", "value"), Input("t5-age", "value"),
+             Input("t5-elev", "value"), Input("t5-wind", "value"), Input("t5-dist", "value"),
+             Input("t5-year", "value"))(update_tab5)
 
 
 _log("app ready")

@@ -6,7 +6,9 @@ The free Render tier has 512 MB of RAM, so every static aggregate is computed he
 
   claims.parquet       ALL paid claims, one compact row each (categoricals + float32); every tab filters and aggregates it live
   aggregates.json      county centroids, feature codes and residual quantiles (small, static)
-  model.txt            LightGBM booster trained on all claims (predicts log of the payout in 2025 dollars)
+  model_year.txt       LightGBM booster (log payout in 2025 dollars) with a loss-year feature, used by the claim estimator
+                       (train_year_model.py). The headline model's out-of-sample predictions are already in claims.parquet.
+  year_control_model.json  that model's own out-of-sample residual quantiles and scores
   model_metrics.json   honest evaluation numbers, feature importance, per-year results
   build_report.json    data-cleaning counts and checks
 """
@@ -77,7 +79,8 @@ def main():
         assert table[col].notna().all(), f"unmapped label in {col}"
     table.to_parquet(OUT / "claims.parquet", compression="snappy", index=False)
 
-    for name in ("model.txt", "model_metrics.json", "build_report.json", "ablation_year_control.json"):
+    for name in ("model_metrics.json", "build_report.json", "ablation_year_control.json", "model_year.txt",
+                 "year_control_model.json"):
         if (DATA / name).exists():
             shutil.copy(DATA / name, OUT / name)
         else:
