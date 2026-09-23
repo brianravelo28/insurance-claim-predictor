@@ -24,7 +24,7 @@ Payout = building + contents + increased-cost-of-compliance. About 30% of claims
 
 - **Storm join:** tracks are interpolated to hourly positions; each claim takes the nearest track point within 150 miles and +/-7 days. The spec's original 50 miles / +/-30 days was tested against FEMA's `floodEvent` labels and matched the wrong storm a third of the time.
 - **Evaluation:** 5-fold cross-validation grouped by loss year, so every claim is predicted by a model that never saw its year. A random split scores higher (0.41) only because claims from the same storm leak across train and test.
-- **Known limits:** the model under-predicts unseen years by about 1.4x (the estimator corrects for it), and building age, its strongest signal, is entangled with loss year. Locations are blurred by FEMA to 0.1 degree (~7 miles).
+- **Known limits:** the model under-predicts unseen years by about 1.4x (the estimator corrects for it). Building age, its strongest signal, is mostly a stand-in for loss year: a loss-year control alone recovers essentially all of age's predictive value (R² 0.206 vs 0.204). Locations are blurred by FEMA to 0.1 degree (~7 miles).
 - **[DATA_QUIRKS.md](DATA_QUIRKS.md)** catalogs the odd things found in the data (a `1492-10-12` construction-date placeholder on 4% of rows, two coexisting occupancy code schemes, malformed HURDAT2 lines, and more).
 
 ## Run it
@@ -35,7 +35,8 @@ pip install -r requirements.txt
 python fetch_data.py          # download and cache raw data into data/raw/ (gitignored)
 python build_dataset.py       # clean, storm-join, inflation-adjust, engineer features
 python train_model.py         # year-grouped CV, metrics, out-of-sample predictions
-python build_deploy_data.py   # slim bundle for the app -> deploy_data/
+python ablation_year_control.py  # is building age just a stand-in for the loss year? (~10 min)
+python build_deploy_data.py   # compact bundle for the app -> deploy_data/
 python app.py                 # dashboard at http://localhost:8058
 ```
 
@@ -52,6 +53,7 @@ python app.py                 # dashboard at http://localhost:8058
 | `fetch_data.py` | Download and cache FEMA claims, HURDAT2, CPI |
 | `build_dataset.py` | Cleaning, storm join, features, validation |
 | `train_model.py` | LightGBM training and honest evaluation |
+| `ablation_year_control.py` | Tests whether building age is a stand-in for the loss year |
 | `build_deploy_data.py` | Package all 311,400 paid claims as one compact table (~4 MB on disk, ~10 MB in memory) plus a few small static aggregates. Render has 512 MB of RAM, so the app keeps data compact and does no heavy work at startup |
 | `constants.py` | Category labels shared by the build script and the app |
 | `app.py`, `wsgi.py` | Dash dashboard and its hosting entry point |

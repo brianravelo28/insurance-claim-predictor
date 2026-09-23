@@ -58,6 +58,8 @@ claims["log_pred"] = np.log1p(claims["prediction_amount"]).astype("float32")
 AGG = json.loads((DEPLOY / "aggregates.json").read_text())
 METRICS = json.loads((DEPLOY / "model_metrics.json").read_text())
 REPORT = json.loads((DEPLOY / "build_report.json").read_text())
+_abl = DEPLOY / "ablation_year_control.json"
+ABLATION = json.loads(_abl.read_text()) if _abl.exists() else None
 booster = lgb.Booster(model_file=str(DEPLOY / "model.txt"))
 FEATURES = METRICS["features"]
 _log("data loaded")
@@ -197,7 +199,7 @@ details.about ul {{ margin: 8px 0 0; padding-left: 20px; color: {INK_2}; line-he
 .dash-options-list-option-checkbox {{ width: 18px; height: 18px; margin: 0; cursor: pointer; }}
 .dash-options-list:not(.dash-checklist) .dash-options-list-option {{ display: flex !important; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 8px 12px; margin: 0; cursor: pointer; font-size: 15px; }}
 .dash-options-list:not(.dash-checklist) .dash-options-list-option:hover {{ background: {PAGE_BG}; }}
-table.eval {{ border-collapse: collapse; width: 100%; font-size: 15px; }}
+table.eval {{ border-collapse: collapse; width: 100%; font-size: 15px; display: block; overflow-x: auto; }}
 table.eval th, table.eval td {{ text-align: left; padding: 8px 10px; border-bottom: 1px solid {BORDER}; }}
 table.eval th {{ color: {INK_2}; font-weight: 600; }}
 """
@@ -277,7 +279,7 @@ def header():
                         html.Li("Only claims that were actually paid are included (payout = building + contents + increased-cost-of-compliance). About 30% of claims were closed without payment and are excluded, so this describes severity given a paid claim."),
                         html.Li("A claim is matched to the nearest storm track point within 150 miles and 7 days of the loss date. Checked against FEMA's own storm labels: 95.6% of claims FEMA calls a named hurricane or tropical storm matched the same-named storm."),
                         html.Li(f"The model is LightGBM on log payout. Its score comes from 5-fold cross-validation grouped by loss year, so each claim is predicted by a model that never saw that year: R² {h['r2_log']:.2f}. This is a modest signal, not a precise predictor; storm-to-storm variation is large."),
-                        html.Li("Caveat: building age is the model's strongest signal, but it is entangled with loss year (older buildings appear mostly in recent, larger claims), so treat it as a correlation, not a cause."),
+                        html.Li("Caveat: building age is the model's strongest signal, but it is entangled with loss year (older buildings appear mostly in recent, larger claims), so treat it as a correlation, not a cause. A loss-year test on the Model tab shows the calendar year alone recovers essentially all of its predictive value."),
                         html.Li("Locations are deliberately blurred by FEMA to 0.1 degree (about 7 miles), and 135 'Florida' claims carried coordinates in other states and were dropped."),
                         html.Li("The project's data-quirk log (sentinel dates, changing occupancy codes, malformed HURDAT2 lines, and more) is in DATA_QUIRKS.md in the repository."),
                     ]),
@@ -374,6 +376,33 @@ def tab3_layout():
     ])
 
 
+def ablation_block():
+    """Is building age just a stand-in for the loss year? (ablation_year_control.py)"""
+    if not ABLATION:
+        return html.Div()
+    a = ABLATION
+    cur, with_year = a["Current model"]["r2_log"], a["Add loss year (year control)"]["r2_log"]
+    no_age, year_only = a["Remove building age"]["r2_log"], a["Loss year, no building age"]["r2_log"]
+    recovered = 100 * (year_only - no_age) / (cur - no_age) if cur != no_age else float("nan")
+    share = lambda v: f"{v:.0f}%" if v else "-"  # noqa: E731
+    table = html.Table([
+        html.Thead(html.Tr([html.Th(c) for c in ["Model version", "R² (log)", "Typical % error", "Building age importance",
+                                                  "Loss year importance"]])),
+        html.Tbody([html.Tr([html.Td(name), html.Td(f"{r['r2_log']:.3f}"), html.Td(f"{r['median_abs_pct_error']:.0f}%"),
+                             html.Td(share(r["age_share_pct"])), html.Td(share(r["year_share_pct"]))])
+                    for name, r in a.items()]),
+    ], className="eval")
+    recovered_text = "essentially all" if recovered >= 95 else f"{recovered:.0f}%"
+    note = (f"Removing building age costs {cur - no_age:.3f} of R² ({cur:.3f} to {no_age:.3f}), so it carries real signal. "
+            f"But a loss-year control on its own recovers {recovered_text} of that ({year_only:.3f}), and adding the year on top of age "
+            f"barely moves the score ({with_year:.3f}). Most of what age contributes is also available from the calendar year: old "
+            "buildings appear mostly in recent, larger claims, so the two can't be cleanly separated. Importance is split between "
+            "correlated features, so read those columns loosely. The production model keeps age and no year control, because a year "
+            "feature cannot extrapolate beyond the years in the data.")
+    return html.Div([html.H3("Is building age just a stand-in for the year?", style={"margin": "0 0 8px"}), table,
+                     html.Div(note, className="note")], className="card", style={"marginTop": "12px"})
+
+
 def tab4_layout():
     m = METRICS
     rows = [
@@ -403,6 +432,7 @@ def tab4_layout():
                  "(payouts in a held-out storm year tend to be larger than in the years it learned from). The calibration chart below shows "
                  "this, and the claim estimator corrects for it. The table above always covers all claims; everything "
                  "below the next line responds to the filters.", className="note"),
+        ablation_block(),
         html.Div(id="t4-dyn", style={"marginTop": "12px"}),
         html.Div(dcc.Graph(figure=f3), className="card", style={"marginTop": "12px"}),
         html.Div("R² and error are on the log scale of the payout in 2025 dollars. 'Typical % error' is the median of |predicted - actual| / actual. "
