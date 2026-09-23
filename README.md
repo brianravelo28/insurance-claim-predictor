@@ -2,6 +2,8 @@
 
 How much does a paid NFIP flood claim cost in Florida, and what drives it? Real FEMA claims joined to NOAA hurricane tracks, modeled with LightGBM and served as an interactive Dash dashboard.
 
+**Live dashboard: https://florida-flood-claim-severity.onrender.com/**
+
 - **311,400 paid claims**, 1978-2026, every payout in constant **2025 dollars** (CPI-U).
 - **77.8% matched to a storm** (within 150 miles and 7 days of the loss). Checked against FEMA's own storm labels: 95.6% of claims FEMA calls a named hurricane or tropical storm matched the same-named storm.
 - **Model R² 0.20 on unseen loss years** (predicting the average scores -0.05), about 74% median error. It is a modest signal, not a precise predictor.
