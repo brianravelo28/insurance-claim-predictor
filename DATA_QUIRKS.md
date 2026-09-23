@@ -1,0 +1,58 @@
+# Data Quirks Catalog
+
+Weird things found in real datasets, kept as interview stories: what it was, how it was found, what it would have broken, what we did.
+"Verified" means counted or reproduced in the data. "Observed" means seen but not explained.
+
+## OpenFEMA NFIP claims (Florida, 448,425 rows)
+
+| # | Quirk | Status | Impact / handling |
+|---|---|---|---|
+| 1 | **Sentinel construction date.** 19,370 rows (4.3%) have `originalConstructionDate` = `1492-10-12` (Columbus's landing). FEMA's dictionary does not mention it; it reads like a placeholder for "unknown" (inference, not documented). A few more are 1069/1070, and 293 rows were "built" after the loss year. | Verified | Naive `2024 - year` gives ~530-year-old buildings. Treated as missing (year < 1800 or > loss year), median-imputed, with a `building_age_missing` flag. |
+| 2 | **Pandas hid it.** Pandas datetimes can't represent years before 1677, so `to_datetime(errors="coerce")` turned the 1492 rows into NaT and a first count said "zero junk dates". | Verified | Parse the year from the raw string instead. Lesson: a silent coercion can look like a clean bill of health. |
+| 3 | **No claim-filing date exists.** The spec assumed `dateOfClaim`, but the schema has only `dateOfLoss`, `originalConstructionDate`, `originalNBDate` (policy start) and `asOfDate` (per FEMA's dictionary, when the record was created or last updated in its source system; always 2026-06-01, so the dataset is a frozen snapshot). Confirmed by scanning all 73 fields by value, not by name. `eventDesignationNumber` (e.g. `FL0222`) is a catastrophe-event ID (state + 2-digit event + 2-digit year), not a claim date. `dateOfLoss` is "the date water first entered the insured building". | Verified | `claim_lag_days` dropped. The earlier synthetic data had invented one. |
+| 4 | **Payout is split across three fields** (`amountPaidOnBuildingClaim`, `...ContentsClaim`, `...IncreasedCostOfComplianceClaim`); there is no single `amountPaid`. | Verified | Target = sum of all three. |
+| 5 | **26% of claims have blank payment fields.** In a 6,000-row sample, 92.9% of the blank-building-payment claims carry a coded non-payment reason (vs 7.7% of paid ones), so these are claims closed without payment. In total 134,861 rows sum to $0. | Verified | Become $0 and are excluded, so the model predicts severity for paid claims only (selection effect). |
+| 6 | **Coordinates are deliberately blurred to 0.1 degree** (~7 miles), and 0.6% are missing. FEMA's dictionary warns this "may result in a point location that exists in an incorrect county or state" and says to use the county field instead. Also, `countyCode` "may not reflect the individual county the property is located" because projects can span counties. | Verified (documented) | Limits how precise a storm-distance match can be. County comes from `countyCode`, not the point. |
+| 7 | **`reportedCity` is a constant** ("Currently Unavailable"). | Verified | Unusable. |
+| 8 | **Codes stored as the wrong types.** `occupancyType` is a float, `elevationCertificateIndicator`, `rateMethod` and the deductible codes are text, booleans arrive as True/False strings when nulls are present. | Verified | Cast deliberately; do not trust dtypes. |
+| 9 | **A $2.57M building payment** on one sampled claim, far above normal NFIP building limits. Probably a multi-unit building, not confirmed. | Observed | Outliers kept for now. |
+| 10 | **Dataset is deprecated.** v2 goes away 2026-10-15, data frozen at 2026-06-01. Successor (v3) is not at the obvious URL. | Verified | Raw pull cached locally; processed data is committed. |
+| 12 | **135 "Florida" claims have coordinates in other states** (many at 40.7N, -74.0W = New York City; others in Louisiana and North Carolina). FEMA warns that the 0.1-degree blurring can put a point in the wrong county or state, but blurring cannot move a claim from Florida to New York, so this is unexplained (probably a geocoding fallback). | Verified (the rows); cause not verified | Dropped by the Florida bounding box. |
+| 13 | **Derived storm-frequency feature ran 6 to 30**, not the spec's guessed 0-20 (28,912 claims are above 20). The spec's range was an assumption, not a property of the data. | Verified | Validation range corrected rather than the data clipped. |
+| 14 | **Payouts drift ~70x over the record.** Median paid claim: $1,063 in the 1970s, $2,715 in the 1980s, $6,797 in the 1990s, $11,340 in the 2000s, $21,129 in the 2010s, $73,714 in the 2020s (inflation, bigger events, more coverage). A "train on the past, test on the future" split scores R2 = -0.88 (the predict-the-average baseline scores -1.34) purely from this drift. | Verified | Headline metric uses year-grouped cross-validation instead; inflation adjustment is an open decision. |
+| 15 | **Two occupancy code schemes coexist, and one is a stand-in for the era.** FEMA's dictionary (fetched from the OpenFEMA API) defines them: 1 single-family, 2 = 2-4 units, 3 = 5+ units, 4 non-residential building, 6 non-residential business; and 11 single-family, 12 = 2-4 units, 13 = 5+ units, 14 mobile home, 15 condo association, 16 single unit in a multi-unit building, 17 non-residential mobile home, 18 non-residential building, 19 non-residential unit. The dictionary says the 2-digit codes are "for Risk Rating 2.0 policies" (the 2021-22 rating overhaul), **yet they appear in claims from 1985 onward** (2020s: 91,453 claims coded 11 vs 3,030 coded 1). The documentation and the data disagree, and FEMA doesn't explain why. Median payout is $8k for code 1 and $67k for code 11 even though both mean "single-family", so that gap was the era (inflation), not the building. | Verified (definitions from FEMA; era counts from data; the reason for the overlap is not explained) | Old and new codes describing the same building are grouped (`occupancy_group`) so the model can't use the code as a proxy for year. Ablation: R2 0.293 -> 0.248 from this alone. |
+| 16 | **Increased Cost of Compliance exceeds its documented cap.** The dictionary says ICC coverage provides "up to $30,000", but 4 claims are above that and the largest is $468,075 (probably a mis-keyed field). | Verified (4 rows); cause not verified | Kept (tiny share); flagged as a likely data-entry error. |
+| 17 | **Negative payments are real.** The dictionary says a negative amount appears when a check isn't cashed and is reissued; 37 claims have a negative total. | Verified (documented) | Dropped by the payout > 0 rule. |
+| 18 | **Inflation adjustment (FRED CPI-U, CPIAUCSL) has a hole at October 2025.** The series is complete back to 1947 except that one month, which has no published value (likely the fall-2025 federal shutdown, cause not verified here). It landed inside my 2025 base year. | Verified (the gap) | Filled by linear interpolation between Sep and Nov 2025 and logged. Payouts are in 2025 dollars; correction factors run 0.97 to 5.14. |
+| 19 | **Building age is entangled with the loss year.** Median single-family payout jumps from ~$16k (buildings 31-40 years old) to $54k-$95k (41+), but the median building age at loss was ~30 in the 1980s and ~50 in the 2020s, so old-building claims are mostly recent claims, which are larger even after CPI adjustment (repair costs rose faster than CPI, or coverage grew). The model's top feature (27% of attribution) is therefore partly a stand-in for year. | Verified (the pattern); the cause is not tested | Flagged in the dashboard; candidates to test: a year control, or FEMA's `postFIRMConstructionIndicator`. |
+| 20 | **Even a well-specified model under-predicts unseen years.** On held-out loss years the actual median claim is ~1.4x the prediction (median log error +0.36), because a storm year the model hasn't seen tends to be bigger than the years it learned from. The L1 (median) objective did not remove this. | Verified | Reported openly; the claim estimator scales its output by this factor. |
+| 11 | **Payout of 0 vs blank** are both common and mean different things (denied vs. never paid). | Observed | Not separated yet. |
+
+## NOAA HURDAT2 (Atlantic best-track)
+
+| # | Quirk | Status | Impact / handling |
+|---|---|---|---|
+| 1 | **Filename changes every release** (`hurdat2-1851-2025-091226.txt`). The spec's fixed URL returns 404. | Verified | Look the link up on the NHC data page. |
+| 2 | **Lat/lon are text like `28.0N` / `94.8W`**, not integers in tenths as the spec claimed. | Verified | A parser built from the spec would crash. |
+| 3 | **Sentinels:** `-999` for missing pressure, `-99` for missing wind. | Verified | Converted to NaN. |
+| 4 | **Records are 6-hourly plus irregular landfall records**; a storm can move ~100 miles between records, so "nearest point within 50 mi" misses near-misses. | Verified (by design) | Tracks interpolated to hourly before matching. |
+| 6 | **Malformed records in a hand-maintained file:** a missing comma between lat and lon (1969-09-29, "63.3N    7.5E") and a latitude with no hemisphere letter (1975-12-07, "38.83"). The second one was worse: a naive parser reads "not N" as South and silently puts a mid-Atlantic storm at -38.8 degrees. Both are far from Florida, but only the crash revealed the first. | Verified | Comma repaired by regex; the no-hemisphere line is skipped and counted. |
+| 5 | **Separate file for the Eastern/Central Pacific** (`hurdat2-nepac`); only the Atlantic file is relevant to Florida. | Verified | Atlantic only. |
+
+## Spec / reference-data quirks
+
+| # | Quirk | Status | Impact / handling |
+|---|---|---|---|
+| 1 | **Spec's Florida bounding box is too small** (30.5N, -87.5W); Florida reaches ~31.0N and Pensacola is at about -87.2 to -87.6W. | Verified (geometry) | Widened to 24.3-31.1N, -87.7 to -79.8W. |
+| 2 | **Spec API syntax is wrong:** `$limit`/`$offset` instead of `$top`/`$skip`, and no `/v2/` in the path. The API's error ("Invalid version format") hinted at it; I first misread it as an outage. | Verified | Fixed. |
+| 3 | **County FIPS table in the checklist is wrong** (Nassau listed as 12086, which is Miami-Dade; 66 entries, not 67; codes shifted). The corrected 67-county table matches FEMA's own community names for 66 of 67 counties (the last, Duval, fails only because its biggest community is "Jacksonville"). | Verified | Use the corrected table. |
+| 4 | **The spec's storm-matching settings (50 miles, +/-30 days) don't fit the data.** Using FEMA's own `floodEvent` storm names as ground truth: with +/-30 days, a third of matches are the wrong storm (66.7% right); with +/-7 days, 99.8% are right. With a 50-mile radius only 49% of named-storm claims match any storm, versus 96% at 150 miles. Storm flooding reaches far beyond the track. | Verified | Radius and window being re-tuned with FEMA labels as the check. |
+
+## Tooling quirks
+
+| # | Quirk | Status |
+|---|---|---|
+| 1 | `pd.read_csv` parses the literal string `"None"` as NaN, which silently emptied a "None" category and crashed a Streamlit multiselect default. | Verified |
+| 2 | A validation script printed "ALL CHECKS PASSED" while two of its checks had failed (hardcoded summary). | Verified |
+| 3 | My own flood-zone grouping silently dropped `AHB` (26,407 claims) and `AOB` into "unknown" because I matched exact strings instead of FEMA's zone families. Found only by printing the raw value counts. Lesson: list the actual categories before writing the mapping. | Verified |
+| 4 | Two changes at once made a score drop uninterpretable (R2 0.30 to 0.18); a 4-way ablation separated them. Neither change lost real skill: both removed the model's ability to guess the era. | Verified |

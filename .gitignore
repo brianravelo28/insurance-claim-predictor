@@ -39,3 +39,6 @@ Thumbs.db
 # Cache
 .pytest_cache/
 .coverage
+
+# Raw source downloads (re-fetchable; processed data is committed instead)
+data/raw/

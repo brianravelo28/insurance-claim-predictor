@@ -1,28 +1,16 @@
+# Render Blueprint: New + -> Blueprint -> pick this repo.
 services:
   - type: web
-    name: insurance-dashboard
-    env: python
-    region: oregon
+    name: florida-flood-claim-severity
+    runtime: python
     plan: free
-
-    # Build settings
-    buildCommand: pip install -r requirements.txt
-    startCommand: streamlit run dashboard.py --server.port=10000 --server.address=0.0.0.0
-
-    # Environment variables (optional)
+    buildCommand: pip install -r requirements-render.txt
+    startCommand: gunicorn wsgi:application --workers 1 --threads 4 --timeout 120 --bind 0.0.0.0:$PORT
+    healthCheckPath: /healthz
     envVars:
-      - key: STREAMLIT_SERVER_HEADLESS
-        value: true
-      - key: STREAMLIT_SERVER_PORT
-        value: 10000
-      - key: STREAMLIT_SERVER_ADDRESS
-        value: 0.0.0.0
-
-    # Health check
-    healthCheckPath: /_stcore/health
-
-    # Disk settings for free tier
-    disk:
-      name: insurance-data
-      mountPath: /var/tmp
-      sizeGB: 1
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: MALLOC_ARENA_MAX
+        value: "2"
