@@ -50,5 +50,6 @@ python app.py                 # dashboard at http://localhost:8058
 | `fetch_data.py` | Download and cache FEMA claims, HURDAT2, CPI |
 | `build_dataset.py` | Cleaning, storm join, features, validation |
 | `train_model.py` | LightGBM training and honest evaluation |
-| `build_deploy_data.py` | Trim data for hosting |
+| `build_deploy_data.py` | Precompute aggregates and trim data for hosting (the free Render tier has 512 MB of RAM, so nothing heavy runs at app startup) |
+| `constants.py` | Category labels shared by the build script and the app |
 | `app.py`, `wsgi.py` | Dash dashboard and its hosting entry point |

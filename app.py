@@ -23,13 +23,22 @@ import pandas as pd
 import plotly.graph_objects as go
 from dash import Dash, Input, Output, dash_table, dcc, html
 
+from constants import FACTOR_COLUMNS, FLOOD_ORDER, OCC_ORDER, STORM_ORDER
+
 BASE_DIR = Path(__file__).resolve().parent
 DEPLOY = BASE_DIR / "deploy_data"
 _T0 = time.time()
 
 
 def _log(stage):
-    print(f"[app] {stage} ({time.time() - _T0:.1f}s)", file=sys.stderr, flush=True)
+    """Startup progress to stderr (elapsed seconds + resident memory on Linux) for the host's logs."""
+    rss = ""
+    try:
+        with open("/proc/self/status") as f:
+            rss = f", {int(next(l.split()[1] for l in f if l.startswith('VmRSS'))) // 1024} MB"
+    except (OSError, StopIteration):
+        pass
+    print(f"[app] {stage} ({time.time() - _T0:.1f}s{rss})", file=sys.stderr, flush=True)
 
 
 # Design tokens (same light palette as the Rossmann dashboard)
@@ -39,34 +48,19 @@ BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"
 SERIES = [BLUE, ORANGE, AQUA, "#eda100", "#e87ba4"]
 
 # ---------------------------------------------------------------- data ----
-claims = pd.read_parquet(DEPLOY / "claims.parquet")
+# Heavy aggregates are precomputed by build_deploy_data.py so the app fits in a 512 MB host.
+claims = pd.read_parquet(DEPLOY / "claims_slim.parquet")  # year, county, real-dollar payout, storm-matched
+AGG = json.loads((DEPLOY / "aggregates.json").read_text())
 METRICS = json.loads((DEPLOY / "model_metrics.json").read_text())
 REPORT = json.loads((DEPLOY / "build_report.json").read_text())
 booster = lgb.Booster(model_file=str(DEPLOY / "model.txt"))
 FEATURES = METRICS["features"]
 _log("data loaded")
 
-YEAR_MIN, YEAR_MAX = int(claims["yearOfLoss"].min()), int(claims["yearOfLoss"].max())
-claims["log_actual"] = np.log1p(claims["amountPaid_real"])
-claims["log_pred"] = np.log1p(claims["prediction_amount"])
-RESID_Q10, RESID_Q50, RESID_Q90 = (claims["log_actual"] - claims["log_pred"]).quantile([0.10, 0.50, 0.90]).tolist()
+YEAR_MIN, YEAR_MAX, N_CLAIMS = AGG["year_min"], AGG["year_max"], AGG["n_claims"]
+RESID_Q10, RESID_Q50, RESID_Q90 = (AGG["residual_quantiles"][k] for k in ("q10", "q50", "q90"))
 UNDERPREDICT = float(np.exp(RESID_Q50))  # actual median claim / predicted, on years the model never saw
 LOG_TICKS = [1e3, 3e3, 1e4, 3e4, 1e5, 3e5, 1e6, 3e6]
-
-STORM_ORDER = ["No storm", "Tropical Depression", "Tropical Storm", "Category 1", "Category 2", "Category 3",
-               "Category 4", "Category 5"]
-FLOOD_ORDER = ["X / B / C (moderate-minimal)", "A / AH / AO / AR / A99 (no base elevation, shallow, special)",
-               "AE / A1-A30 (base elevation known)", "V / VE (velocity, coastal)", "D / unknown"]
-OCC_ORDER = ["Single-family", "2-4 units", "5+ units", "Mobile home", "Condo association",
-             "Unit in multi-unit building", "Non-residential", "Unknown"]
-AGE_LABELS = ["0-10 yrs", "11-20", "21-30", "31-40", "41-50", "51-60", "60+"]
-DIST_LABELS = ["No storm match", "0-25 mi", "25-50 mi", "50-100 mi", "100-150 mi"]
-
-claims["elevated"] = np.where(claims["is_elevated"] == 1, "Elevated", "Not elevated")
-claims["age_band"] = pd.cut(claims["building_age_years"], [-1, 10, 20, 30, 40, 50, 60, 500], labels=AGE_LABELS).astype(str)
-d = claims["distance_from_track_mi"]
-claims["distance_band"] = np.select([d.isna(), d <= 25, d <= 50, d <= 100], DIST_LABELS[:4], default=DIST_LABELS[4])
-claims["matched"] = claims["storm_label"].notna()
 
 # Short forms for chart x-axis ticks only; full names stay in the dropdown, table, and hover.
 AXIS_SHORT_LABELS = {
@@ -78,38 +72,23 @@ AXIS_SHORT_LABELS = {
     "No storm match": "No match",
 }
 
-FACTORS = {
-    "Storm category": ("storm_category", STORM_ORDER, "Strongest category of the nearest storm (HURDAT2 wind at the closest track point within 150 miles and 7 days). The order is not strictly increasing because a few catastrophic storms dominate individual categories; categories with no claims are omitted."),
-    "Flood zone": ("flood_zone_group", FLOOD_ORDER, "FEMA flood zone the property was rated in, grouped by FEMA's zone definitions."),
-    "Occupancy type": ("occupancy_group", OCC_ORDER, "FEMA's legacy (1-4, 6) and newer (11-19) occupancy codes describe the same building types, so they are grouped together."),
-    "Elevated building": ("elevated", ["Not elevated", "Elevated"], "FEMA's elevatedBuildingIndicator."),
-    "Building age": ("age_band", AGE_LABELS, "Age at time of loss. About 4% of buildings have an unknown construction date (FEMA uses a 1492 placeholder) and are set to the median age. Caution: old-building claims are mostly recent claims (median age at loss was about 30 in the 1980s and 50 in the 2020s), and recent claims are larger even after inflation adjustment, so age and loss year are entangled."),
-    "Distance from storm track": ("distance_band", DIST_LABELS, "Distance from the claim's (blurred) location to the nearest storm track point."),
+FACTOR_NOTES = {
+    "Storm category": "Strongest category of the nearest storm (HURDAT2 wind at the closest track point within 150 miles and 7 days). The order is not strictly increasing because a few catastrophic storms dominate individual categories; categories with no claims are omitted.",
+    "Flood zone": "FEMA flood zone the property was rated in, grouped by FEMA's zone definitions.",
+    "Occupancy type": "FEMA's legacy (1-4, 6) and newer (11-19) occupancy codes describe the same building types, so they are grouped together.",
+    "Elevated building": "FEMA's elevatedBuildingIndicator.",
+    "Building age": "Age at time of loss. About 4% of buildings have an unknown construction date (FEMA uses a 1492 placeholder) and are set to the median age. Caution: old-building claims are mostly recent claims (median age at loss was about 30 in the 1980s and 50 in the 2020s), and recent claims are larger even after inflation adjustment, so age and loss year are entangled.",
+    "Distance from storm track": "Distance from the claim's (blurred) location to the nearest storm track point.",
 }
+FACTORS = {name: (col, order, FACTOR_NOTES[name]) for name, (col, order) in FACTOR_COLUMNS.items()}
 
-
-def _box_stats(col, order):
-    g = claims.groupby(col, observed=True)["amountPaid_real"]
-    q = g.quantile([0.1, 0.25, 0.5, 0.75, 0.9]).unstack()
-    q["n"] = g.size()
-    return q.reindex([o for o in order if o in q.index])
-
-
-BOX = {name: _box_stats(col, order) for name, (col, order, _) in FACTORS.items()}
-
-_yr = claims.groupby("yearOfLoss").agg(claims=("amountPaid_real", "size"), total=("amountPaid_real", "sum"),
-                                       median=("amountPaid_real", "median"))
-_top = claims[claims["matched"]].groupby(["yearOfLoss", "storm_label"], observed=True).size().reset_index(name="n")
-YEAR_TOP_STORM = _top.sort_values("n").groupby("yearOfLoss").tail(1).set_index("yearOfLoss")["storm_label"].astype(str).to_dict()
-YEAR_STATS = _yr
-
-_cty = claims.groupby("countyName", observed=True).agg(lat=("latitude", "mean"), lon=("longitude", "mean"),
-                                                        freq=("historical_storm_freq", "median"))
-COUNTIES = sorted(_cty.index.tolist())
-COUNTY_INFO = _cty.to_dict("index")
-
-OCC_CODE = dict(zip(claims["occupancy_group"].astype(str), claims["occupancy_group_encoded"]))
-FLOOD_CODE = dict(zip(claims["flood_zone_group"].astype(str), claims["flood_zone_encoded"]))
+BOX = {name: pd.DataFrame(rows).set_index("label") for name, rows in AGG["box"].items()}
+STORMS = pd.DataFrame(AGG["storms"]).set_index("label")
+YEAR_TOP_STORM = {int(k): v for k, v in AGG["year_top_storm"].items()}
+COUNTY_INFO = AGG["counties"]
+COUNTIES = sorted(COUNTY_INFO)
+OCC_CODE, FLOOD_CODE = AGG["occupancy_code"], AGG["flood_code"]
+CALIBRATION = pd.DataFrame(AGG["calibration"])
 _log("precompute done")
 
 FEATURE_NAMES = {
@@ -252,7 +231,7 @@ def header():
                      "with every payout in constant 2025 dollars.", style={"color": INK_2, "marginBottom": "16px"}),
             html.Div(
                 [
-                    kpi("Paid claims analyzed", f"{len(claims):,}", f"Florida, {YEAR_MIN}-{YEAR_MAX}"),
+                    kpi("Paid claims analyzed", f"{N_CLAIMS:,}", f"Florida, {YEAR_MIN}-{YEAR_MAX}"),
                     kpi("Matched to a storm", pct(REPORT["storm_matched_pct"]), "within 150 mi and 7 days of the loss"),
                     kpi("Model R² on unseen years", f"{h['r2_log']:.2f}", f"predicting the average scores {base['r2_log']:.2f}"),
                     kpi("Typical prediction error", f"{h['median_abs_pct_error']:.0f}%", "median absolute % error"),
@@ -360,8 +339,7 @@ def tab4_layout():
                              html.Td(f"{s['n']:,}"), html.Td(txt)]) for n, s, txt in rows]),
     ], className="eval")
 
-    bins = pd.qcut(claims["prediction_amount"], 20, duplicates="drop")
-    cal = claims.groupby(bins, observed=True).agg(pred=("prediction_amount", "median"), actual=("amountPaid_real", "median"))
+    cal = CALIBRATION
     lo, hi = float(min(cal.min())) * 0.8, float(max(cal.max())) * 1.2
     f1 = go.Figure([go.Scatter(x=[lo, hi], y=[lo, hi], mode="lines", name="Perfect prediction", line=dict(color=INK_3, dash="dash")),
                     go.Scatter(x=cal["pred"], y=cal["actual"], mode="lines+markers", name="Median actual claim", line=dict(color=BLUE),
@@ -475,9 +453,7 @@ def update_tab1(years, measure):
 
 @app.callback(Output("t2-chart", "figure"), Output("t2-table", "children"), Input("t2-metric", "value"), Input("t2-n", "value"))
 def update_tab2(metric, n):
-    g = claims[claims["matched"]].groupby("storm_label", observed=True)
-    stats = pd.DataFrame({"claims": g.size(), "total": g["amountPaid_real"].sum(), "median": g["amountPaid_real"].median()})
-    top = stats.sort_values(metric, ascending=False).head(n)
+    top = STORMS.sort_values(metric, ascending=False).head(n)
     fig = go.Figure(go.Bar(x=top[metric][::-1], y=top.index.astype(str)[::-1], orientation="h", marker_color=ORANGE,
                            customdata=np.c_[top["claims"][::-1], top["total"][::-1], top["median"][::-1]],
                            hovertemplate="%{y}<br>Claims: %{customdata[0]:,.0f}<br>Total paid: %{customdata[1]:$,.0f}"
@@ -501,16 +477,16 @@ def update_tab2(metric, n):
 def update_tab3(factor):
     st = BOX[factor]
     labels = [AXIS_SHORT_LABELS.get(str(i), str(i)) for i in st.index]
-    fig = go.Figure(go.Box(x=labels, q1=st[0.25], median=st[0.5], q3=st[0.75], lowerfence=st[0.1],
-                           upperfence=st[0.9], marker_color=BLUE, line=dict(color=BLUE), fillcolor="rgba(42,120,214,0.18)",
+    fig = go.Figure(go.Box(x=labels, q1=st["q25"], median=st["q50"], q3=st["q75"], lowerfence=st["q10"],
+                           upperfence=st["q90"], marker_color=BLUE, line=dict(color=BLUE), fillcolor="rgba(42,120,214,0.18)",
                            hoverinfo="y"))
     style_fig(fig, f"Payout by {factor.lower()} (box = 25th-75th percentile, whiskers = 10th-90th)", 460, unified=False)
     log_dollar_axis(fig, "y", "Payout (2025 $, log scale)")
     fig.update_xaxes(tickangle=0, tickfont=dict(size=12))
     tbl = html.Table([
         html.Thead(html.Tr([html.Th(c) for c in [factor, "Claims", "Median payout", "Middle 50% of claims"]])),
-        html.Tbody([html.Tr([html.Td(str(i)), html.Td(f"{int(r['n']):,}"), html.Td(money(r[0.5])),
-                             html.Td(f"{money(r[0.25])} to {money(r[0.75])}")]) for i, r in st.iterrows()]),
+        html.Tbody([html.Tr([html.Td(str(i)), html.Td(f"{int(r['n']):,}"), html.Td(money(r["q50"])),
+                             html.Td(f"{money(r['q25'])} to {money(r['q75'])}")]) for i, r in st.iterrows()]),
     ], className="eval")
     return fig, tbl, FACTORS[factor][2]
 
