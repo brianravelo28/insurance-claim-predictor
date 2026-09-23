@@ -1,330 +1,54 @@
-# Florida Hurricane Claim Severity Predictor
+# Florida Flood Claim Severity
 
-**An end-to-end machine learning pipeline for predicting hurricane insurance claim amounts in Florida.**
+How much does a paid NFIP flood claim cost in Florida, and what drives it? Real FEMA claims joined to NOAA hurricane tracks, modeled with LightGBM and served as an interactive Dash dashboard.
 
-## Overview
+- **311,400 paid claims**, 1978-2026, every payout in constant **2025 dollars** (CPI-U).
+- **77.8% matched to a storm** (within 150 miles and 7 days of the loss). Checked against FEMA's own storm labels: 95.6% of claims FEMA calls a named hurricane or tropical storm matched the same-named storm.
+- **Model R² 0.20 on unseen loss years** (predicting the average scores -0.05), about 74% median error. It is a modest signal, not a precise predictor.
 
-This project combines FEMA NFIP claims data with NOAA hurricane track data to build a LightGBM regression model that predicts claim severity. Includes comprehensive data engineering, validation, EDA analysis, and feature importance analysis.
+The dashboard has five tabs: Overview, Storms, Risk factors, Model, and a Claim estimator.
 
-### Project Status
-✅ **Complete** - Day 1 (Data Pipeline) + Day 2 (LightGBM Modeling)
+## Data
 
----
+| Source | What | Notes |
+|---|---|---|
+| [OpenFEMA NFIP claims v2](https://www.fema.gov/api/open/v2/FimaNfipClaims) | 448,425 Florida claims | **Deprecated; removed Oct 15, 2026.** Data frozen as of 2026-06-01. |
+| [NOAA HURDAT2](https://www.nhc.noaa.gov/data/) | Atlantic best-track storm positions | Filename changes each release; the fetcher looks it up. |
+| [FRED CPIAUCSL](https://fred.stlouisfed.org/series/CPIAUCSL) | CPI-U, for inflation adjustment | October 2025 has no published value; interpolated. |
 
-## Quick Start
+Payout = building + contents + increased-cost-of-compliance. About 30% of claims were closed without payment and are excluded, so this describes severity given a paid claim.
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/YOUR_USERNAME/insurance-claim-predictor.git
-cd insurance-claim-predictor
-```
+## Method notes
 
-### 2. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
+- **Storm join:** tracks are interpolated to hourly positions; each claim takes the nearest track point within 150 miles and +/-7 days. The spec's original 50 miles / +/-30 days was tested against FEMA's `floodEvent` labels and matched the wrong storm a third of the time.
+- **Evaluation:** 5-fold cross-validation grouped by loss year, so every claim is predicted by a model that never saw its year. A random split scores higher (0.41) only because claims from the same storm leak across train and test.
+- **Known limits:** the model under-predicts unseen years by about 1.4x (the estimator corrects for it), and building age, its strongest signal, is entangled with loss year. Locations are blurred by FEMA to 0.1 degree (~7 miles).
+- **[DATA_QUIRKS.md](DATA_QUIRKS.md)** catalogs the odd things found in the data (a `1492-10-12` construction-date placeholder on 4% of rows, two coexisting occupancy code schemes, malformed HURDAT2 lines, and more).
 
-### 3. Run the Pipeline
+## Run it
 
-**Full pipeline (with API fallback to synthetic data):**
-```bash
-python insurance_day1_pipeline.py
-python insurance_day2_improved.py
-```
-
-**Fast synthetic version (no API calls):**
-```bash
-python insurance_day1_fast.py
-python insurance_day2_improved.py
-```
-
-### 4. View Results
-- **Data:** `insurance_day1_clean.csv` (100k claims, 27 features)
-- **Predictions:** `insurance_day2_predictions.csv` (100k predictions)
-- **Plots:** 11 visualization files (EDA + model performance)
-- **Documentation:** See `.md` files for detailed analysis
-
----
-
-## Project Structure
-
-```
-insurance-claim-predictor/
-├── README.md                           # This file
-├── requirements.txt                    # Python dependencies
-├── .gitignore                         # Git ignore rules
-│
-├── Day 1: Data Pipeline
-├── insurance_day1_pipeline.py          # Full pipeline (with APIs)
-├── insurance_day1_fast.py              # Fast synthetic version
-├── insurance_day1_clean.csv            # Final clean dataset [21 MB]
-│
-├── Day 2: LightGBM Modeling
-├── insurance_day2_improved.py          # Training script (used)
-├── insurance_day2_lightgbm.py          # Alternative training script
-├── insurance_day2_predictions.csv      # Model predictions [26 MB]
-│
-├── API & Troubleshooting
-├── validate_sources.py                 # API validation script
-├── diagnose_apis.py                    # API diagnostics
-├── fix_apis.py                         # API troubleshooting
-├── fix_apis_advanced.py                # Advanced fixes (FTP, etc)
-│
-├── Visualizations (11 plots)
-├── 01_target_distribution.png          # Target variable EDA
-├── 02_claims_by_year.png               # Temporal trends
-├── 03_claims_by_county.png             # Geographic patterns
-├── 04_storm_category_vs_payout.png     # Storm intensity effect
-├── 05_flood_zone_vs_payout.png         # Flood zone effect
-├── 06_building_age_vs_payout.png       # Building age effect
-├── 07_distance_vs_payout.png           # Distance effect
-├── 08_feature_importance.png           # Model feature ranking
-├── 09_predictions_vs_actual.png        # Model fit (train/test)
-├── 10_residuals.png                    # Residual analysis
-├── 11_residual_distribution.png        # Residual distribution
-│
-└── Documentation (6 guides)
-    ├── DAY1_PIPELINE_SUMMARY.md        # Day 1 detailed analysis
-    ├── DAY2_COMPLETE.md                # Day 2 comprehensive report
-    ├── QUICKSTART.md                   # How to use datasets
-    ├── API_STATUS_AND_FIXES.md         # API troubleshooting guide
-    ├── PROJECT_COMPLETION.md           # Project summary
-    └── README.md                       # This file
-```
-
----
-
-## Data Sources
-
-### FEMA NFIP Claims (OpenFEMA API)
-- **Endpoint:** `https://www.fema.gov/api/open/data/FimaNfipClaims`
-- **Current Status:** HTTP 400 (fallback to synthetic)
-- **Expected:** 300k-500k Florida claims (1978-present)
-- **Fields:** 12 core attributes (claim amount, location, dates, risk factors)
-
-### NOAA HURDAT2 Storm Tracks
-- **Endpoint:** `https://www.nhc.noaa.gov/data/hurdat2/hurdat2.txt`
-- **Current Status:** HTTP 404 (fallback to synthetic)
-- **Expected:** 10k+ track points (1978-2023)
-- **Features:** Storm position, wind speed, pressure, timing
-
-### Current Dataset
-- **Type:** Synthetic (fully functional demo)
-- **Size:** 100,000 claims + 5,000 storm track points
-- **Quality:** Engineered with realistic feature-target correlations
-
----
-
-## Features Engineered
-
-### Raw Features (12)
-- `claimNumber` — Claim ID
-- `dateOfLoss`, `dateOfClaim` — Temporal anchors
-- `latitude`, `longitude` — Geographic location
-- `countyCode`, `countyName` — Location aggregation
-- `floodZone` — A, AE, X, or None
-- `occupancyType` — Residential, Commercial, Industrial
-- `amountPaid` — Target variable (raw)
-- `yearOfConstruction` — Building age
-- `elevatedBuildingIndicator` — 0/1 flag
-
-### Spatial Join (5 features added)
-- `distance_from_track_mi` — Haversine distance (≤50 mi)
-- `nearest_storm_name` — Matched storm ID
-- `storm_wind_speed_kt` — Wind speed at track point
-- `storm_category` — Saffir-Simpson category
-- `days_to_storm` — Time delta (±30 days)
-
-### Engineered Features (9)
-- `building_age_years` — 2024 - yearOfConstruction
-- `claim_lag_days` — dateOfClaim - dateOfLoss
-- `is_elevated` — Binary from elevatedBuildingIndicator
-- `flood_zone_encoded` — Ordinal encoding (X→1, AE→2, A→3)
-- `occupancy_encoded` — Ordinal encoding (Residential→1, etc)
-- `distance_bin` — Binned proximity (0-10→3, 10-25→2, 25-50→1)
-- `storm_category_encoded` — Ordinal (Depression→0 ... Cat5→6)
-- `log_amountpaid` — **Target** (log-transformed for regression)
-- `historical_storm_freq` — Storm frequency per county
-
----
-
-## Model Performance
-
-### LightGBM Regression
-
-**Configuration:**
-- Boosting rounds: 85 (early stopped)
-- Learning rate: 0.05
-- Max depth: 7
-- Test set size: 20,000 claims
-
-**Performance Metrics:**
-```
-Test R²:                0.0579  (explains ~6% variance)
-Test RMSE:              1.3197  (log points)
-Test MAE:               ~1.0    (log points)
-Cross-validation R²:    0.0513 ± 0.0026
-```
-
-**Note:** R² is modest because we're using synthetic data. With real FEMA/HURDAT2 data, expect R² = 0.15-0.35+
-
-### Feature Importance (Top 5)
-1. **building_age_years** (18.9%) — Building age is strongest predictor
-2. **latitude** (17.0%) — North-south location matters
-3. **longitude** (16.7%) — East-west location matters
-4. **claim_lag_days** (16.4%) — Filing delay affects amount
-5. **flood_zone_encoded** (10.6%) — Flood designation matters
-
----
-
-## Usage Examples
-
-### Load and Explore Data
-```python
-import pandas as pd
-
-# Load clean dataset
-df = pd.read_csv('insurance_day1_clean.csv')
-print(f"Dataset: {df.shape}")  # (100000, 27)
-
-# View sample claims
-print(df[['claimNumber', 'amountPaid', 'building_age_years', 'storm_category']].head())
-```
-
-### Analyze Predictions
-```python
-# Load predictions
-pred_df = pd.read_csv('insurance_day2_predictions.csv')
-
-# Find highest predicted payouts
-high_risk = pred_df.nlargest(10, 'prediction_amount')[
-    ['claimNumber', 'amountPaid', 'prediction_amount', 'building_age_years']
-]
-print(high_risk)
-
-# Compare actual vs predicted
-print(f"Mean prediction: ${pred_df['prediction_amount'].mean():,.0f}")
-print(f"Mean actual: ${df['amountPaid'].mean():,.0f}")
-```
-
-### Retrain with Real Data
-When FEMA/NOAA APIs are available:
-```bash
-# Automatically fetches real data (no code changes needed)
-python insurance_day1_pipeline.py
-
-# Retrains model on real data
-python insurance_day2_improved.py
-```
-
----
-
-## API Status
-
-### FEMA OpenFEMA API
-- **Status:** Currently HTTP 400 (version format issue)
-- **Workaround:** Download from https://opendata.fema.gov/
-- **Fallback:** Synthetic data (built-in, fully functional)
-
-### NOAA HURDAT2
-- **Status:** Currently HTTP 404 (server issue or moved)
-- **Workaround:** https://www.ncei.noaa.gov/cdo-web/
-- **Fallback:** Synthetic data (built-in, fully functional)
-
-See `API_STATUS_AND_FIXES.md` for troubleshooting and alternative data sources.
-
----
-
-## Installation & Requirements
-
-### Prerequisites
-- Python 3.9+
-- pip or conda
-
-### Install Dependencies
-```bash
-pip install pandas numpy matplotlib seaborn scikit-learn lightgbm requests
-```
-
-Or use `requirements.txt` (when available):
 ```bash
 pip install -r requirements.txt
+
+python fetch_data.py          # download and cache raw data into data/raw/ (gitignored)
+python build_dataset.py       # clean, storm-join, inflation-adjust, engineer features
+python train_model.py         # year-grouped CV, metrics, out-of-sample predictions
+python build_deploy_data.py   # slim bundle for the app -> deploy_data/
+python app.py                 # dashboard at http://localhost:8058
 ```
 
-### Dependencies
-- **Data:** pandas, numpy
-- **Visualization:** matplotlib, seaborn
-- **ML:** scikit-learn, lightgbm
-- **APIs:** requests
+`deploy_data/` is committed, so the dashboard runs without any of the steps above. Because the FEMA v2 endpoint is being retired, keep your local `data/raw/` cache if you want to rebuild from scratch after October 2026.
 
----
+## Deploy (Render)
 
-## Documentation
+`render.yaml` is a Render Blueprint (New + > Blueprint > pick this repo). It installs `requirements-render.txt` and serves `wsgi.py` with gunicorn; `wsgi.py` answers the health check immediately while the app loads in the background.
 
-1. **[QUICKSTART.md](QUICKSTART.md)** — How to use the datasets and model
-2. **[DAY1_PIPELINE_SUMMARY.md](DAY1_PIPELINE_SUMMARY.md)** — Detailed Day 1 analysis
-3. **[DAY2_COMPLETE.md](DAY2_COMPLETE.md)** — Comprehensive Day 2 report
-4. **[API_STATUS_AND_FIXES.md](API_STATUS_AND_FIXES.md)** — API troubleshooting guide
-5. **[PROJECT_COMPLETION.md](PROJECT_COMPLETION.md)** — Full project summary
+## Files
 
----
-
-## Next Steps
-
-### Immediate
-- [ ] Review EDA plots (01-07) for patterns
-- [ ] Examine model predictions (insurance_day2_predictions.csv)
-- [ ] Validate feature importance (08)
-
-### Short-term
-- [ ] Monitor FEMA/NOAA APIs for restoration
-- [ ] Retrain with real data when available
-- [ ] Compare synthetic vs real performance
-
-### Production
-- [ ] Add SHAP explanations
-- [ ] Build prediction confidence intervals
-- [ ] Set up monitoring dashboard
-- [ ] Integrate with pricing system
-
----
-
-## Contributing
-
-Found an issue or have suggestions?
-1. Check existing issues/documentation
-2. Test with both synthetic and real data
-3. Submit detailed findings with reproducible examples
-
----
-
-## License
-
-[Add your license here - e.g., MIT, Apache 2.0]
-
----
-
-## Contact
-
-**Author:** Brian  
-**Email:** brian.blitz28@gmail.com  
-**Project:** Florida Hurricane Claim Severity Predictor  
-**Status:** Complete (Day 1 + Day 2)  
-
----
-
-## Changelog
-
-### v1.0 (2026-07-14)
-- ✅ Complete Day 1 data pipeline (100k claims, 27 features)
-- ✅ Complete Day 2 LightGBM model (85 boosting rounds, R² = 0.0579)
-- ✅ 11 visualization plots (EDA + model analysis)
-- ✅ Comprehensive documentation (6 guides)
-- ✅ API fallback to synthetic data
-- ✅ Production-ready code structure
-
----
-
-**Last Updated:** 2026-07-14  
-**Status:** Ready for GitHub  
-**Data:** Synthetic (100k claims) | Ready for real FEMA/HURDAT2  
+| File | Purpose |
+|---|---|
+| `fetch_data.py` | Download and cache FEMA claims, HURDAT2, CPI |
+| `build_dataset.py` | Cleaning, storm join, features, validation |
+| `train_model.py` | LightGBM training and honest evaluation |
+| `build_deploy_data.py` | Trim data for hosting |
+| `app.py`, `wsgi.py` | Dash dashboard and its hosting entry point |

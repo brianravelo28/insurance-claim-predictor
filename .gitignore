@@ -40,5 +40,5 @@ Thumbs.db
 .pytest_cache/
 .coverage
 
-# Raw source downloads (re-fetchable; processed data is committed instead)
-data/raw/
+# Pipeline outputs are regenerable; the slim deploy_data/ bundle is what gets committed
+data/
