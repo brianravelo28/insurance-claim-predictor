@@ -1,15 +1,23 @@
 """
 WSGI entry point for hosting (gunicorn wsgi:application).
 
-The app loads its data at import time. Hosts like Render mark a deploy failed if nothing answers HTTP
-quickly, so this wrapper answers the health check and a "loading" page right away and imports the real
-app in a background thread, then hands requests over.
+The dashboard loads its data at import time, which can take a while on a small
+shared-CPU instance. Hosts like Render mark a deploy failed if nothing answers HTTP
+quickly, so this wrapper answers right away (health check + a "loading" page) and
+imports the real app in a background thread, then hands requests over.
+
+The loader is started per *process*, lazily on the first request (keyed on os.getpid()) -
+never at import time, because gunicorn's master imports this module and then forks the
+worker, and forking while a thread is mid-import deadlocks the child.
 """
+import json
+import os
 import sys
 import threading
 import time
 
-_state = {"app": None, "error": None, "started": time.time()}
+_lock = threading.Lock()
+_state = {"app": None, "error": None, "started": time.time(), "pid": None}
 
 _LOADING = (
     b"<!doctype html><meta charset=utf-8><meta http-equiv=refresh content=4>"
@@ -19,12 +27,13 @@ _LOADING = (
 )
 
 
-def _load():
+def _load(pid):
     try:
         import app as dash_app
 
-        _state["app"] = dash_app.server
-        print(f"[wsgi] app ready after {time.time() - _state['started']:.1f}s", file=sys.stderr, flush=True)
+        if _state["pid"] == pid:
+            _state["app"] = dash_app.server
+        print(f"[wsgi] pid {pid}: app ready after {time.time() - _state['started']:.1f}s", file=sys.stderr, flush=True)
     except BaseException as exc:  # noqa: BLE001 - surface any startup failure in the logs
         _state["error"] = exc
         import traceback
@@ -32,13 +41,49 @@ def _load():
         traceback.print_exc()
 
 
-threading.Thread(target=_load, daemon=True).start()
+def _ensure_loader():
+    pid = os.getpid()
+    if _state["pid"] == pid:
+        return
+    with _lock:
+        if _state["pid"] == pid:
+            return
+        _state.update(app=None, error=None, started=time.time(), pid=pid)
+        print(f"[wsgi] pid {pid}: starting loader thread", file=sys.stderr, flush=True)
+        threading.Thread(target=_load, args=(pid,), daemon=True).start()
+
+
+def _rss_mb():
+    try:
+        with open("/proc/self/status") as f:
+            return int(next(l.split()[1] for l in f if l.startswith("VmRSS"))) // 1024
+    except (OSError, StopIteration):
+        return None
+
+
+# No thread is started at import time: gunicorn's master imports this module and then forks
+# the worker, and a loader thread caught mid-import at that moment leaves the child holding
+# import locks that nothing will ever release (a deadlock). The first request in the worker
+# (Render's health check arrives within seconds) starts the loader instead.
 
 
 def application(environ, start_response):
-    if environ.get("PATH_INFO") == "/healthz":
+    _ensure_loader()
+    path = environ.get("PATH_INFO")
+    if path == "/healthz":
         start_response("200 OK", [("Content-Type", "text/plain")])
         return [b"ok"]
+    if path == "/debugz":
+        info = {
+            "pid": os.getpid(),
+            "loaded": _state["app"] is not None,
+            "error": repr(_state["error"]) if _state["error"] else None,
+            "seconds_since_loader_start": round(time.time() - _state["started"], 1),
+            "rss_mb": _rss_mb(),
+            "threads": threading.active_count(),
+        }
+        start_response("200 OK", [("Content-Type", "application/json")])
+        return [json.dumps(info).encode()]
     if _state["app"] is not None:
         return _state["app"](environ, start_response)
     if _state["error"] is not None:
