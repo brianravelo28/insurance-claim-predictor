@@ -79,8 +79,8 @@ def main():
         assert table[col].notna().all(), f"unmapped label in {col}"
     table.to_parquet(OUT / "claims.parquet", compression="snappy", index=False)
 
-    for name in ("model_metrics.json", "build_report.json", "ablation_year_control.json", "model_year.txt",
-                 "year_control_model.json"):
+    for name in ("model_metrics.json", "build_report.json", "ablation_year_control.json", "ablation_postfirm.json",
+                 "model_year.txt", "year_control_model.json"):
         if (DATA / name).exists():
             shutil.copy(DATA / name, OUT / name)
         else:

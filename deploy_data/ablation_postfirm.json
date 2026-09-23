@@ -1,0 +1,72 @@
+{
+  "Current model": {
+    "r2_log": 0.2041,
+    "median_abs_pct_error": 73.7,
+    "fold_r2": [
+      0.317,
+      0.057,
+      0.161,
+      -0.035,
+      0.164
+    ],
+    "age_share_pct": 27.36,
+    "post_firm_share_pct": 0.0,
+    "year_share_pct": 0.0
+  },
+  "Add post-FIRM flag (age kept)": {
+    "r2_log": 0.1855,
+    "median_abs_pct_error": 74.2,
+    "fold_r2": [
+      0.327,
+      -0.018,
+      0.146,
+      -0.037,
+      0.151
+    ],
+    "age_share_pct": 25.11,
+    "post_firm_share_pct": 4.8,
+    "year_share_pct": 0.0
+  },
+  "Post-FIRM flag instead of building age": {
+    "r2_log": 0.1331,
+    "median_abs_pct_error": 76.1,
+    "fold_r2": [
+      0.211,
+      -0.092,
+      0.076,
+      0.032,
+      0.062
+    ],
+    "age_share_pct": 0.0,
+    "post_firm_share_pct": 16.94,
+    "year_share_pct": 0.0
+  },
+  "Loss year + post-FIRM flag (age kept)": {
+    "r2_log": 0.2125,
+    "median_abs_pct_error": 72.2,
+    "fold_r2": [
+      0.355,
+      0.067,
+      0.168,
+      -0.048,
+      0.166
+    ],
+    "age_share_pct": 20.58,
+    "post_firm_share_pct": 6.43,
+    "year_share_pct": 19.03
+  },
+  "Loss year + post-FIRM flag, no building age": {
+    "r2_log": 0.2098,
+    "median_abs_pct_error": 72.3,
+    "fold_r2": [
+      0.302,
+      0.092,
+      0.163,
+      -0.056,
+      0.189
+    ],
+    "age_share_pct": 0.0,
+    "post_firm_share_pct": 16.75,
+    "year_share_pct": 29.73
+  }
+}

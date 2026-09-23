@@ -250,6 +250,9 @@ def engineer_features(c):
     c["building_age_years"] = age.fillna(age.median()).astype(int)
 
     c["is_elevated"] = c["elevatedBuildingIndicator"].astype(str).str.lower().eq("true").astype(int)
+    # Construction started after the community's initial FIRM (or after 1974-12-31, whichever is later). Complete for
+    # every claim, unlike the construction date.
+    c["post_firm"] = c["postFIRMConstructionIndicator"].astype(str).str.lower().eq("true").astype(int)
     c["flood_zone_encoded"], c["flood_zone_group"] = encode_flood_zone(c["ratedFloodZone"])
     c["occupancy_encoded"] = c["occupancyType"].fillna(0).astype(int)
     c["occupancy_label"] = c["occupancy_encoded"].map(OCCUPANCY_LABELS)
@@ -346,7 +349,7 @@ def main():
             "amountPaidOnBuildingClaim", "amountPaidOnContentsClaim", "amountPaidOnIncreasedCostOfComplianceClaim",
             "amountPaid", "distance_from_track_mi", "storm_id", "nearest_storm_name", "storm_wind_speed_kt",
             "storm_category", "days_to_storm", "building_age_years", "building_age_missing", "is_elevated",
-            "flood_zone_encoded", "occupancy_encoded", "distance_bin", "storm_category_encoded",
+            "flood_zone_encoded", "occupancy_encoded", "distance_bin", "storm_category_encoded", "post_firm",
             "historical_storm_freq", "log_amountpaid", "occupancy_label", "occupancy_group",
             "occupancy_group_encoded", "cpi_factor", "amountPaid_real", "log_amountpaid_real", "floodEvent"]
     out = claims[[k for k in cols if k in claims]].rename(columns={"id": "claimId"})

@@ -60,6 +60,8 @@ METRICS = json.loads((DEPLOY / "model_metrics.json").read_text())
 REPORT = json.loads((DEPLOY / "build_report.json").read_text())
 _abl = DEPLOY / "ablation_year_control.json"
 ABLATION = json.loads(_abl.read_text()) if _abl.exists() else None
+_abl2 = DEPLOY / "ablation_postfirm.json"
+ABLATION_FIRM = json.loads(_abl2.read_text()) if _abl2.exists() else None
 # The claim estimator uses the loss-year-control variant (train_year_model.py) with its own out-of-sample calibration.
 booster = lgb.Booster(model_file=str(DEPLOY / "model_year.txt"))
 YEAR_MODEL = json.loads((DEPLOY / "year_control_model.json").read_text())
@@ -90,7 +92,7 @@ FACTOR_NOTES = {
     "Flood zone": "FEMA flood zone the property was rated in, grouped by FEMA's zone definitions.",
     "Occupancy type": "FEMA's legacy (1-4, 6) and newer (11-19) occupancy codes describe the same building types, so they are grouped together.",
     "Elevated building": "FEMA's elevatedBuildingIndicator.",
-    "Building age": "Age at time of loss. About 4% of buildings have an unknown construction date (FEMA uses a 1492 placeholder) and are set to the median age. Caution: old-building claims are mostly recent claims (median age at loss was about 30 in the 1980s and 50 in the 2020s), and recent claims are larger even after inflation adjustment, so age and loss year are entangled.",
+    "Building age": "Age at time of loss. About 4% of buildings have an unknown construction date (FEMA uses a 1492 placeholder) and are set to the median age, although every one of them is flagged pre-FIRM, so they are probably old. Caution: old-building claims are mostly recent claims (median age at loss was about 30 in the 1980s and 50 in the 2020s), and recent claims are larger even after inflation adjustment, so age and loss year are entangled.",
     "Distance from storm track": "Distance from the claim's (blurred) location to the nearest storm track point.",
 }
 FACTORS = {name: (col, order, FACTOR_NOTES[name]) for name, (col, order) in FACTOR_COLUMNS.items()}
@@ -391,31 +393,50 @@ def tab3_layout():
     ])
 
 
+def _ablation_table(rows):
+    share = lambda v: f"{v:.0f}%" if v else "-"  # noqa: E731
+    return html.Table([
+        html.Thead(html.Tr([html.Th(c) for c in ["Model version", "R\u00b2 (log)", "Typical % error", "Building age importance",
+                                                  "Post-FIRM importance", "Loss year importance"]])),
+        html.Tbody([html.Tr([html.Td(name), html.Td(f"{r['r2_log']:.3f}"), html.Td(f"{r['median_abs_pct_error']:.0f}%"),
+                             html.Td(share(r["age_share_pct"])), html.Td(share(r.get("post_firm_share_pct", 0))),
+                             html.Td(share(r["year_share_pct"]))]) for name, r in rows.items()]),
+    ], className="eval")
+
+
 def ablation_block():
-    """Is building age just a stand-in for the loss year? (ablation_year_control.py)"""
+    """Is building age just a stand-in for the loss year? Does FEMA's post-FIRM flag help? (ablation_*.py)"""
     if not ABLATION:
         return html.Div()
     a = ABLATION
     cur, with_year = a["Current model"]["r2_log"], a["Add loss year (year control)"]["r2_log"]
     no_age, year_only = a["Remove building age"]["r2_log"], a["Loss year, no building age"]["r2_log"]
     recovered = 100 * (year_only - no_age) / (cur - no_age) if cur != no_age else float("nan")
-    share = lambda v: f"{v:.0f}%" if v else "-"  # noqa: E731
-    table = html.Table([
-        html.Thead(html.Tr([html.Th(c) for c in ["Model version", "R² (log)", "Typical % error", "Building age importance",
-                                                  "Loss year importance"]])),
-        html.Tbody([html.Tr([html.Td(name), html.Td(f"{r['r2_log']:.3f}"), html.Td(f"{r['median_abs_pct_error']:.0f}%"),
-                             html.Td(share(r["age_share_pct"])), html.Td(share(r["year_share_pct"]))])
-                    for name, r in a.items()]),
-    ], className="eval")
     recovered_text = "essentially all" if recovered >= 95 else f"{recovered:.0f}%"
-    note = (f"Removing building age costs {cur - no_age:.3f} of R² ({cur:.3f} to {no_age:.3f}), so it carries real signal. "
+    note = (f"Removing building age costs {cur - no_age:.3f} of R\u00b2 ({cur:.3f} to {no_age:.3f}), so it carries real signal. "
             f"But a loss-year control on its own recovers {recovered_text} of that ({year_only:.3f}), and adding the year on top of age "
             f"barely moves the score ({with_year:.3f}). Most of what age contributes is also available from the calendar year: old "
             "buildings appear mostly in recent, larger claims, so the two can't be cleanly separated. Importance is split between "
             "correlated features, so read those columns loosely. The headline model above keeps age and no year control; the claim "
             "estimator uses the year-control version, and a year feature cannot extrapolate beyond the years in the data.")
-    return html.Div([html.H3("Is building age just a stand-in for the year?", style={"margin": "0 0 8px"}), table,
-                     html.Div(note, className="note")], className="card", style={"marginTop": "12px"})
+    children = [html.H3("Is building age just a stand-in for the year?", style={"margin": "0 0 8px"}),
+                _ablation_table(a), html.Div(note, className="note")]
+
+    if ABLATION_FIRM:
+        f = ABLATION_FIRM
+        add_on = f["Add post-FIRM flag (age kept)"]["r2_log"]
+        instead = f["Post-FIRM flag instead of building age"]["r2_log"]
+        with_both = f["Loss year + post-FIRM flag (age kept)"]["r2_log"]
+        note2 = (f"FEMA's post-FIRM flag says whether construction started after the community's flood map (or after 1974-12-31). It is "
+                 f"complete for every claim, so it looked like a cleaner stand-in for age than the construction date. It isn't: used instead "
+                 f"of age it scores {instead:.3f}, no better than having no age at all ({no_age:.3f}); added on top of age it doesn't help "
+                 f"({add_on:.3f} vs {cur:.3f}); and once the loss year is in the model it adds essentially nothing ({with_both:.3f} vs "
+                 f"{with_year:.3f}). It is another coarse era marker: roughly 5% of claims in the 1970s came from post-FIRM buildings, "
+                 "versus about 45% in the 2010s. Individual folds swing by up to about 0.04 between near-identical models, so differences of "
+                 "a few thousandths are not meaningful.")
+        children += [html.H3("Does FEMA's post-FIRM flag help?", style={"margin": "16px 0 8px"}), _ablation_table(f),
+                     html.Div(note2, className="note")]
+    return html.Div(children, className="card", style={"marginTop": "12px"})
 
 
 def tab4_layout():
