@@ -52,6 +52,6 @@ python app.py                 # dashboard at http://localhost:8058
 | `fetch_data.py` | Download and cache FEMA claims, HURDAT2, CPI |
 | `build_dataset.py` | Cleaning, storm join, features, validation |
 | `train_model.py` | LightGBM training and honest evaluation |
-| `build_deploy_data.py` | Precompute aggregates and trim data for hosting (the free Render tier has 512 MB of RAM, so nothing heavy runs at app startup) |
+| `build_deploy_data.py` | Package all 311,400 paid claims as one compact table (~4 MB on disk, ~10 MB in memory) plus a few small static aggregates. Render has 512 MB of RAM, so the app keeps data compact and does no heavy work at startup |
 | `constants.py` | Category labels shared by the build script and the app |
 | `app.py`, `wsgi.py` | Dash dashboard and its hosting entry point |

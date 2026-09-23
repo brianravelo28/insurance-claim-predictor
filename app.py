@@ -15,6 +15,7 @@ import json
 import os
 import sys
 import time
+from functools import lru_cache
 from pathlib import Path
 
 import lightgbm as lgb
@@ -48,8 +49,12 @@ BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"
 SERIES = [BLUE, ORANGE, AQUA, "#eda100", "#e87ba4"]
 
 # ---------------------------------------------------------------- data ----
-# Heavy aggregates are precomputed by build_deploy_data.py so the app fits in a 512 MB host.
-claims = pd.read_parquet(DEPLOY / "claims_slim.parquet")  # year, county, real-dollar payout, storm-matched
+# One compact row per paid claim (all 311,400; categoricals + float32, ~10 MB in memory). Every tab filters and
+# aggregates it live, so nothing is a precomputed summary of a subset.
+claims = pd.read_parquet(DEPLOY / "claims.parquet")
+claims["matched"] = claims["storm_label"].notna()
+claims["log_actual"] = np.log1p(claims["amountPaid_real"]).astype("float32")
+claims["log_pred"] = np.log1p(claims["prediction_amount"]).astype("float32")
 AGG = json.loads((DEPLOY / "aggregates.json").read_text())
 METRICS = json.loads((DEPLOY / "model_metrics.json").read_text())
 REPORT = json.loads((DEPLOY / "build_report.json").read_text())
@@ -82,13 +87,39 @@ FACTOR_NOTES = {
 }
 FACTORS = {name: (col, order, FACTOR_NOTES[name]) for name, (col, order) in FACTOR_COLUMNS.items()}
 
-BOX = {name: pd.DataFrame(rows).set_index("label") for name, rows in AGG["box"].items()}
-STORMS = pd.DataFrame(AGG["storms"]).set_index("label")
-YEAR_TOP_STORM = {int(k): v for k, v in AGG["year_top_storm"].items()}
 COUNTY_INFO = AGG["counties"]
 COUNTIES = sorted(COUNTY_INFO)
 OCC_CODE, FLOOD_CODE = AGG["occupancy_code"], AGG["flood_code"]
-CALIBRATION = pd.DataFrame(AGG["calibration"])
+
+
+def _present(col, order=None):
+    """Category labels that actually occur in the data (a category with no claims isn't a useful filter option)."""
+    have = set(claims[col].dropna().unique())
+    return [o for o in (order or sorted(have)) if o in have]
+
+
+COUNTY_OPTIONS = _present("countyName")
+OCC_OPTIONS = _present("occupancy_group", OCC_ORDER)
+FLOOD_OPTIONS = _present("flood_zone_group", FLOOD_ORDER)
+STORM_OPTIONS = _present("storm_category", STORM_ORDER)
+
+
+@lru_cache(maxsize=4)
+def _subset(years, counties, occs, floods, storms):
+    m = claims["yearOfLoss"].between(years[0], years[1]).to_numpy()
+    for col, sel in (("countyName", counties), ("occupancy_group", occs), ("flood_zone_group", floods),
+                     ("storm_category", storms)):
+        if sel:
+            m &= claims[col].isin(sel).to_numpy()
+    return claims[m]
+
+
+def filtered(years, counties, occs, floods, storms):
+    """The claims matching the global filter bar (an empty multi-select means 'all')."""
+    return _subset(tuple(years or (YEAR_MIN, YEAR_MAX)), tuple(counties or ()), tuple(occs or ()), tuple(floods or ()),
+                   tuple(storms or ()))
+
+
 _log("precompute done")
 
 FEATURE_NAMES = {
@@ -262,10 +293,32 @@ TAB_STYLE = {"padding": "10px 14px", "fontSize": "15px", "border": f"1px solid {
              "color": INK_2, "fontWeight": "500"}
 TAB_SELECTED = {**TAB_STYLE, "backgroundColor": SURFACE, "color": INK, "fontWeight": "650", "borderTop": f"2px solid {BLUE}"}
 
+def filter_bar():
+    def multi(id_, options, placeholder, width):
+        return dcc.Dropdown(id=id_, options=options, multi=True, placeholder=placeholder, style={"width": width})
+
+    return html.Div(
+        [
+            html.Div([
+                field("Loss years", html.Div(dcc.RangeSlider(
+                    id="f-years", min=YEAR_MIN, max=YEAR_MAX, step=1, value=[YEAR_MIN, YEAR_MAX], allowCross=False,
+                    marks={y: str(y) for y in range(1980, YEAR_MAX, 10)}), style={"width": "300px", "paddingBottom": "18px"})),
+                field("County", multi("f-county", COUNTY_OPTIONS, "All counties", "200px")),
+                field("Occupancy", multi("f-occ", OCC_OPTIONS, "All types", "200px")),
+                field("Flood zone", multi("f-flood", FLOOD_OPTIONS, "All zones", "200px")),
+                field("Storm category", multi("f-storm", STORM_OPTIONS, "All categories", "200px")),
+            ], className="controls"),
+            html.Div(id="f-count", className="note", style={"marginTop": "8px"}),
+        ],
+        id="filters", className="card", style={"marginBottom": "12px"},
+    )
+
+
 app.layout = html.Div(
     className="wrap",
     children=[
         header(),
+        filter_bar(),
         dcc.Tabs(
             id="tabs", value="tab1", colors={"border": BORDER, "primary": BLUE, "background": PAGE_BG},
             children=[dcc.Tab(label=lbl, value=val, style=TAB_STYLE, selected_style=TAB_SELECTED) for val, lbl in
@@ -284,9 +337,6 @@ MEASURES = {"claims": "Number of claims", "total": "Total paid (2025 $)", "media
 def tab1_layout():
     return html.Div([
         html.Div([
-            field("Loss years", html.Div(dcc.RangeSlider(
-                id="t1-years", min=YEAR_MIN, max=YEAR_MAX, step=1, value=[YEAR_MIN, YEAR_MAX], allowCross=False,
-                marks={y: str(y) for y in range(1980, YEAR_MAX, 10)}), style={"width": "460px", "paddingBottom": "18px"})),
             field("Measure", dcc.Dropdown(id="t1-measure", options=[{"label": v, "value": k} for k, v in MEASURES.items()],
                                           value="total", clearable=False, style={"width": "240px"})),
         ], className="controls card"),
@@ -339,29 +389,10 @@ def tab4_layout():
                              html.Td(f"{s['n']:,}"), html.Td(txt)]) for n, s, txt in rows]),
     ], className="eval")
 
-    cal = CALIBRATION
-    lo, hi = float(min(cal.min())) * 0.8, float(max(cal.max())) * 1.2
-    f1 = go.Figure([go.Scatter(x=[lo, hi], y=[lo, hi], mode="lines", name="Perfect prediction", line=dict(color=INK_3, dash="dash")),
-                    go.Scatter(x=cal["pred"], y=cal["actual"], mode="lines+markers", name="Median actual claim", line=dict(color=BLUE),
-                               hovertemplate="Predicted %{x:$,.0f}<br>Actual (median) %{y:$,.0f}<extra></extra>")])
-    style_fig(f1, "Calibration: claims grouped by predicted payout (20 groups)", 420, unified=False)
-    log_dollar_axis(f1, "x", "Median predicted payout (2025 $)", lo, hi)
-    log_dollar_axis(f1, "y", "Median actual payout (2025 $)", lo, hi)
-
-    by = pd.DataFrame(m["by_year"]).T
-    by.index = by.index.astype(int)
-    f2 = go.Figure([
-        go.Scatter(x=by.index, y=np.expm1(by["actual_mean_log"]), name="Actual (typical claim)", line=dict(color=BLUE),
-                   customdata=by["n"], hovertemplate="%{x}: actual %{y:$,.0f} (%{customdata:,.0f} claims)<extra></extra>"),
-        go.Scatter(x=by.index, y=np.expm1(by["predicted_mean_log"]), name="Predicted (typical claim)", line=dict(color=ORANGE),
-                   hovertemplate="%{x}: predicted %{y:$,.0f}<extra></extra>")])
-    style_fig(f2, "Typical claim by loss year: actual vs predicted (out of sample)", 380)
-    log_dollar_axis(f2, "y", "Typical payout (2025 $)")
-
     imp = pd.Series(m["shap_importance_pct"]).sort_values()
     f3 = go.Figure(go.Bar(x=imp.values, y=[FEATURE_NAMES.get(k, k) for k in imp.index], orientation="h", marker_color=BLUE,
                           hovertemplate="%{y}: %{x:.1f}%<extra></extra>"))
-    style_fig(f3, "What the model relies on (share of mean |SHAP|)", 420, unified=False)
+    style_fig(f3, "What the model relies on (share of mean |SHAP|, all claims)", 420, unified=False)
     f3.update_xaxes(title="% of total attribution")
 
     folds = ", ".join(f"{r:.2f}" for r in m["fold_r2"])
@@ -370,9 +401,9 @@ def tab4_layout():
         html.Div(f"R² by fold is {folds}: some storm seasons are far harder to predict than others. "
                  f"On years it has never seen, the model under-predicts: the actual median claim runs about {UNDERPREDICT:.1f}x its prediction "
                  "(payouts in a held-out storm year tend to be larger than in the years it learned from). The calibration chart below shows "
-                 "this, and the claim estimator corrects for it.", className="note"),
-        html.Div(dcc.Graph(figure=f1), className="card", style={"marginTop": "12px"}),
-        html.Div(dcc.Graph(figure=f2), className="card", style={"marginTop": "12px"}),
+                 "this, and the claim estimator corrects for it. The table above always covers all claims; everything "
+                 "below the next line responds to the filters.", className="note"),
+        html.Div(id="t4-dyn", style={"marginTop": "12px"}),
         html.Div(dcc.Graph(figure=f3), className="card", style={"marginTop": "12px"}),
         html.Div("R² and error are on the log scale of the payout in 2025 dollars. 'Typical % error' is the median of |predicted - actual| / actual. "
                  "Features do not include damage amounts or coverage limits, which are only known after the claim exists.", className="note"),
@@ -419,16 +450,54 @@ def _measure_series(frame_group, measure):
     return col.sum() if measure == "total" else col.median()
 
 
-@app.callback(Output("t1-kpis", "children"), Output("t1-year-chart", "figure"), Output("t1-map", "figure"),
-              Input("t1-years", "value"), Input("t1-measure", "value"))
-def update_tab1(years, measure):
-    sub = claims[claims["yearOfLoss"].between(years[0], years[1])]
+FILTERS = [Input("f-years", "value"), Input("f-county", "value"), Input("f-occ", "value"), Input("f-flood", "value"),
+           Input("f-storm", "value")]
+
+
+def empty_fig(message, height=300):
+    fig = go.Figure()
+    fig.add_annotation(text=message, showarrow=False, font=dict(size=16, color=INK_2), xref="paper", yref="paper", x=0.5, y=0.5)
+    fig.update_xaxes(visible=False)
+    fig.update_yaxes(visible=False)
+    return style_fig(fig, height=height)
+
+
+NO_CLAIMS = "No claims match these filters"
+
+
+@app.callback(Output("f-count", "children"), *FILTERS)
+def update_filter_count(years, counties, occs, floods, storms):
+    sub = filtered(years, counties, occs, floods, storms)
+    if len(sub) == N_CLAIMS:
+        return f"Showing all {N_CLAIMS:,} paid claims. Filters apply to every tab except the claim estimator."
+    return (f"Showing {len(sub):,} of {N_CLAIMS:,} paid claims ({100 * len(sub) / N_CLAIMS:.1f}%), "
+            f"{money(sub['amountPaid_real'].sum())} paid in 2025 dollars.")
+
+
+@app.callback(Output("filters", "style"), Input("tabs", "value"))
+def toggle_filters(tab):
+    return {"marginBottom": "12px", "display": "none" if tab == "tab5" else "block"}
+
+
+def _measure_series(frame_group, measure):
+    if measure == "claims":
+        return frame_group.size()
+    col = frame_group["amountPaid_real"]
+    return col.sum() if measure == "total" else col.median()
+
+
+def update_tab1(years, counties, occs, floods, storms, measure):
+    sub = filtered(years, counties, occs, floods, storms)
+    if sub.empty:
+        return [kpi("Claims", "0")], empty_fig(NO_CLAIMS), empty_fig(NO_CLAIMS, 520)
     kpis = [kpi("Claims", f"{len(sub):,}"), kpi("Total paid", money(sub["amountPaid_real"].sum()), "2025 dollars"),
             kpi("Median claim", money(sub["amountPaid_real"].median()), "2025 dollars"),
             kpi("Near a storm", pct(100 * sub["matched"].mean()), "within 150 mi and 7 days")]
 
     y = _measure_series(sub.groupby("yearOfLoss"), measure)
-    tops = [YEAR_TOP_STORM.get(int(i), "none matched") for i in y.index]
+    top = sub[sub["matched"]].groupby(["yearOfLoss", "storm_label"], observed=True).size().reset_index(name="n")
+    top_storm = top.sort_values("n").groupby("yearOfLoss").tail(1).set_index("yearOfLoss")["storm_label"].astype(str).to_dict()
+    tops = [top_storm.get(int(i), "none matched") for i in y.index]
     fig = go.Figure(go.Bar(x=y.index, y=y.values, marker_color=BLUE, customdata=tops,
                            hovertemplate="%{x}: %{y:,.0f}<br>Most claims from: %{customdata}<extra></extra>"))
     style_fig(fig, f"{MEASURES[measure]} by year of loss", 380, unified=False)
@@ -437,13 +506,16 @@ def update_tab1(years, measure):
     g = sub.groupby("countyName", observed=True)
     size = _measure_series(g, measure)
     med = g["amountPaid_real"].median()
+    counts = g.size()
+    keep = counts[counts > 0].index
+    size, med, counts = size[keep], med[keep], counts[keep]
     ci = pd.DataFrame(COUNTY_INFO).T.loc[size.index]
     scale = 46 / np.sqrt(max(size.max(), 1))
     m = go.Figure(go.Scattermapbox(
         lat=ci["lat"], lon=ci["lon"], mode="markers", text=size.index,
         marker=dict(size=np.maximum(np.sqrt(size.values) * scale, 5), color=med.values, colorscale="YlOrRd", showscale=True,
                     colorbar=dict(title="Median<br>claim", tickprefix="$"), opacity=0.75),
-        customdata=np.c_[size.values, med.values, g.size().values],
+        customdata=np.c_[size.values, med.values, counts.values],
         hovertemplate="%{text}<br>" + MEASURES[measure] + ": %{customdata[0]:,.0f}<br>Median claim: %{customdata[1]:$,.0f}"
                       "<br>Claims: %{customdata[2]:,.0f}<extra></extra>"))
     m.update_layout(mapbox=dict(style="open-street-map", center=dict(lat=27.9, lon=-83.2), zoom=5.4), height=520,
@@ -451,14 +523,23 @@ def update_tab1(years, measure):
     return kpis, fig, m
 
 
-@app.callback(Output("t2-chart", "figure"), Output("t2-table", "children"), Input("t2-metric", "value"), Input("t2-n", "value"))
-def update_tab2(metric, n):
-    top = STORMS.sort_values(metric, ascending=False).head(n)
+app.callback(Output("t1-kpis", "children"), Output("t1-year-chart", "figure"), Output("t1-map", "figure"),
+             *FILTERS, Input("t1-measure", "value"))(update_tab1)
+
+
+def update_tab2(years, counties, occs, floods, storms, metric, n):
+    sub = filtered(years, counties, occs, floods, storms)
+    sub = sub[sub["matched"]]
+    if sub.empty:
+        return empty_fig("No storm-matched claims match these filters"), html.Div()
+    stats = sub.groupby("storm_label", observed=True).agg(
+        claims=("amountPaid_real", "size"), total=("amountPaid_real", "sum"), median=("amountPaid_real", "median"))
+    top = stats.sort_values(metric, ascending=False).head(n)
     fig = go.Figure(go.Bar(x=top[metric][::-1], y=top.index.astype(str)[::-1], orientation="h", marker_color=ORANGE,
                            customdata=np.c_[top["claims"][::-1], top["total"][::-1], top["median"][::-1]],
                            hovertemplate="%{y}<br>Claims: %{customdata[0]:,.0f}<br>Total paid: %{customdata[1]:$,.0f}"
                                          "<br>Median claim: %{customdata[2]:$,.0f}<extra></extra>"))
-    style_fig(fig, f"Top {n} storms by {MEASURES[metric].lower()}", max(360, 26 * n + 120), unified=False)
+    style_fig(fig, f"Top {len(top)} storms by {MEASURES[metric].lower()}", max(360, 26 * len(top) + 120), unified=False)
     fig.update_xaxes(title=MEASURES[metric], tickprefix="" if metric == "claims" else "$")
     tbl = dash_table.DataTable(
         data=[{"Storm": str(i), "Claims": f"{int(r['claims']):,}", "Total paid (2025 $)": money(r["total"]),
@@ -473,9 +554,20 @@ def update_tab2(metric, n):
     return fig, tbl
 
 
-@app.callback(Output("t3-chart", "figure"), Output("t3-table", "children"), Output("t3-note", "children"), Input("t3-factor", "value"))
-def update_tab3(factor):
-    st = BOX[factor]
+app.callback(Output("t2-chart", "figure"), Output("t2-table", "children"), *FILTERS,
+             Input("t2-metric", "value"), Input("t2-n", "value"))(update_tab2)
+
+
+def update_tab3(years, counties, occs, floods, storms, factor):
+    col, order, note = FACTORS[factor]
+    sub = filtered(years, counties, occs, floods, storms)
+    if sub.empty:
+        return empty_fig(NO_CLAIMS, 460), html.Div(), note
+    g = sub.groupby(col, observed=True)["amountPaid_real"]
+    st = g.quantile([0.1, 0.25, 0.5, 0.75, 0.9]).unstack()
+    st.columns = ["q10", "q25", "q50", "q75", "q90"]
+    st["n"] = g.size()
+    st = st[st["n"] > 0].reindex([o for o in order if o in st.index])
     labels = [AXIS_SHORT_LABELS.get(str(i), str(i)) for i in st.index]
     fig = go.Figure(go.Box(x=labels, q1=st["q25"], median=st["q50"], q3=st["q75"], lowerfence=st["q10"],
                            upperfence=st["q90"], marker_color=BLUE, line=dict(color=BLUE), fillcolor="rgba(42,120,214,0.18)",
@@ -488,7 +580,53 @@ def update_tab3(factor):
         html.Tbody([html.Tr([html.Td(str(i)), html.Td(f"{int(r['n']):,}"), html.Td(money(r["q50"])),
                              html.Td(f"{money(r['q25'])} to {money(r['q75'])}")]) for i, r in st.iterrows()]),
     ], className="eval")
-    return fig, tbl, FACTORS[factor][2]
+    return fig, tbl, note
+
+
+app.callback(Output("t3-chart", "figure"), Output("t3-table", "children"), Output("t3-note", "children"), *FILTERS,
+             Input("t3-factor", "value"))(update_tab3)
+
+
+def update_tab4(years, counties, occs, floods, storms):
+    sub = filtered(years, counties, occs, floods, storms)
+    if len(sub) < 200:
+        return html.Div("Too few claims match these filters to evaluate the model (need at least 200).", className="card")
+    y, p = sub["log_actual"].to_numpy(dtype="float64"), sub["log_pred"].to_numpy(dtype="float64")
+    sst = float(((y - y.mean()) ** 2).sum())
+    r2 = 1 - float(((y - p) ** 2).sum()) / sst if sst > 0 else float("nan")
+    actual = sub["amountPaid_real"].to_numpy(dtype="float64")
+    ape = float(np.median(np.abs(sub["prediction_amount"].to_numpy(dtype="float64") - actual) / actual) * 100)
+    kpis = html.Div([kpi("Claims in this view", f"{len(sub):,}"),
+                     kpi("R\u00b2 on this slice", f"{r2:.2f}", "out-of-sample predictions"),
+                     kpi("Typical error on this slice", f"{ape:.0f}%", "median absolute % error"),
+                     kpi("Actual / predicted (median)", f"{np.exp(np.median(y - p)):.2f}x", "1.00x = unbiased")], className="kpi-row")
+
+    bins = pd.qcut(sub["prediction_amount"], 20, duplicates="drop")
+    cal = sub.groupby(bins, observed=True).agg(pred=("prediction_amount", "median"), actual=("amountPaid_real", "median"))
+    lo, hi = float(cal.min().min()) * 0.8, float(cal.max().max()) * 1.2
+    f1 = go.Figure([go.Scatter(x=[lo, hi], y=[lo, hi], mode="lines", name="Perfect prediction", line=dict(color=INK_3, dash="dash")),
+                    go.Scatter(x=cal["pred"], y=cal["actual"], mode="lines+markers", name="Median actual claim", line=dict(color=BLUE),
+                               hovertemplate="Predicted %{x:$,.0f}<br>Actual (median) %{y:$,.0f}<extra></extra>")])
+    style_fig(f1, "Calibration: claims grouped by predicted payout (20 groups)", 420, unified=False)
+    log_dollar_axis(f1, "x", "Median predicted payout (2025 $)", lo, hi)
+    log_dollar_axis(f1, "y", "Median actual payout (2025 $)", lo, hi)
+
+    by = sub.groupby("yearOfLoss").agg(n=("log_actual", "size"), actual=("log_actual", "mean"), pred=("log_pred", "mean"))
+    f2 = go.Figure([
+        go.Scatter(x=by.index, y=np.expm1(by["actual"]), name="Actual (typical claim)", line=dict(color=BLUE),
+                   customdata=by["n"], hovertemplate="%{x}: actual %{y:$,.0f} (%{customdata:,.0f} claims)<extra></extra>"),
+        go.Scatter(x=by.index, y=np.expm1(by["pred"]), name="Predicted (typical claim)", line=dict(color=ORANGE),
+                   hovertemplate="%{x}: predicted %{y:$,.0f}<extra></extra>")])
+    style_fig(f2, "Typical claim by loss year: actual vs predicted (out of sample)", 380)
+    log_dollar_axis(f2, "y", "Typical payout (2025 $)")
+    note = html.Div("R\u00b2 within a narrow slice is not comparable to the headline: filtering removes the variation the model "
+                    "uses to separate claims, so scores usually fall. Predictions are the year-grouped out-of-sample ones.",
+                    className="note")
+    return html.Div([kpis, html.Div(dcc.Graph(figure=f1), className="card", style={"marginTop": "12px"}),
+                     html.Div(dcc.Graph(figure=f2), className="card", style={"marginTop": "12px"}), note])
+
+
+app.callback(Output("t4-dyn", "children"), *FILTERS)(update_tab4)
 
 
 @app.callback(Output("t5-kpis", "children"), Output("t5-chart", "figure"),
