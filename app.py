@@ -92,7 +92,7 @@ FACTOR_NOTES = {
     "Flood zone": "FEMA flood zone the property was rated in, grouped by FEMA's zone definitions.",
     "Occupancy type": "FEMA's legacy (1-4, 6) and newer (11-19) occupancy codes describe the same building types, so they are grouped together.",
     "Elevated building": "FEMA's elevatedBuildingIndicator.",
-    "Building age": "Age at time of loss. About 4% of buildings have an unknown construction date (FEMA uses a 1492 placeholder) and are set to the median age, although every one of them is flagged pre-FIRM, so they are probably old. Caution: old-building claims are mostly recent claims (median age at loss was about 30 in the 1980s and 50 in the 2020s), and recent claims are larger even after inflation adjustment, so age and loss year are entangled.",
+    "Building age": "Age at time of loss. About 4% of buildings have an unknown construction date (FEMA uses a 1492 placeholder); every one of them is flagged pre-FIRM, so here they're bucketed using the age of known-date pre-FIRM buildings from the same loss year, rather than one flat age for all of them (this affects only this chart, not the model). Caution: old-building claims are mostly recent claims (median age at loss was about 30 in the 1980s and 50 in the 2020s), and recent claims are larger even after inflation adjustment, so age and loss year are entangled.",
     "Distance from storm track": "Distance from the claim's (blurred) location to the nearest storm track point.",
 }
 FACTORS = {name: (col, order, FACTOR_NOTES[name]) for name, (col, order) in FACTOR_COLUMNS.items()}

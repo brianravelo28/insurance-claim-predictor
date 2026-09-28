@@ -223,6 +223,34 @@ def wind_to_category(w):
     ).astype(int)
 
 
+def display_building_age(c, min_n=30):
+    """Building age for DISPLAY/aggregation only (e.g. the Risk factors 'Building age' chart) -- NOT a model feature.
+
+    Placeholder-date rows (building_age_missing==1; all flagged pre-FIRM, see DATA_QUIRKS.md) get the median age of
+    known-date pre-FIRM claims from the SAME loss year, instead of the flat overall median: "pre-FIRM" is not a fixed
+    age (it ages from ~9 years old in the 1970s to ~55 by the 2020s as the same construction era gets older), and 92%
+    of placeholder rows are themselves 1970s-80s losses. Tested in ablation_placeholder_age.py: this makes no
+    difference to the model (R2 0.204 vs 0.202, within fold-to-fold noise), so the model keeps the flat-median
+    building_age_years column; this display-only version just avoids lumping ~11,700 claims from every era into one
+    misleading age bucket.
+    """
+    known_prefirm = c[(c["building_age_missing"] == 0) & (c["post_firm"] == 0)]
+    by_year = known_prefirm.groupby("yearOfLoss")["building_age_years"].agg(["median", "size"])
+    overall_median = known_prefirm["building_age_years"].median()
+
+    def lookup(yr):
+        if yr in by_year.index and by_year.loc[yr, "size"] >= min_n:
+            return by_year.loc[yr, "median"]
+        window = by_year.loc[by_year.index.to_series().between(yr - 2, yr + 2)]
+        return np.average(window["median"], weights=window["size"]) if window["size"].sum() >= min_n else overall_median
+
+    year_value = {yr: lookup(yr) for yr in c["yearOfLoss"].unique()}
+    age = c["building_age_years"].copy()
+    ph = c["building_age_missing"] == 1
+    age[ph] = c.loc[ph, "yearOfLoss"].map(year_value).round().astype(int)
+    return age
+
+
 def encode_flood_zone(z):
     """Groups follow FEMA's ratedFloodZone definitions; later rules override earlier (overlapping) ones."""
     z = z.fillna("UNKNOWN").str.upper().str.strip()
@@ -253,6 +281,7 @@ def engineer_features(c):
     # Construction started after the community's initial FIRM (or after 1974-12-31, whichever is later). Complete for
     # every claim, unlike the construction date.
     c["post_firm"] = c["postFIRMConstructionIndicator"].astype(str).str.lower().eq("true").astype(int)
+    c["building_age_display_years"] = display_building_age(c)
     c["flood_zone_encoded"], c["flood_zone_group"] = encode_flood_zone(c["ratedFloodZone"])
     c["occupancy_encoded"] = c["occupancyType"].fillna(0).astype(int)
     c["occupancy_label"] = c["occupancy_encoded"].map(OCCUPANCY_LABELS)
@@ -350,7 +379,7 @@ def main():
             "amountPaid", "distance_from_track_mi", "storm_id", "nearest_storm_name", "storm_wind_speed_kt",
             "storm_category", "days_to_storm", "building_age_years", "building_age_missing", "is_elevated",
             "flood_zone_encoded", "occupancy_encoded", "distance_bin", "storm_category_encoded", "post_firm",
-            "historical_storm_freq", "log_amountpaid", "occupancy_label", "occupancy_group",
+            "historical_storm_freq", "log_amountpaid", "building_age_display_years", "occupancy_label", "occupancy_group",
             "occupancy_group_encoded", "cpi_factor", "amountPaid_real", "log_amountpaid_real", "floodEvent"]
     out = claims[[k for k in cols if k in claims]].rename(columns={"id": "claimId"})
     out["dateOfLoss"] = out["dateOfLoss"].dt.strftime("%Y-%m-%d")

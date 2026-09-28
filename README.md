@@ -57,6 +57,7 @@ python app.py                 # dashboard at http://localhost:8058
 | `train_model.py` | LightGBM training and honest evaluation |
 | `ablation_year_control.py` | Tests whether building age is a stand-in for the loss year |
 | `ablation_postfirm.py` | Tests FEMA's post-FIRM construction flag as a replacement for, or addition to, building age (it doesn't help) |
+| `ablation_placeholder_age.py` | Tests a year-aware "old" imputation for the ~11.7k placeholder-date buildings vs. the flat median (no meaningful difference) |
 | `train_year_model.py` | Trains the loss-year-control model the claim estimator uses (R² 0.211, with its own out-of-sample calibration) |
 | `build_deploy_data.py` | Package all 311,400 paid claims as one compact table (~4 MB on disk, ~10 MB in memory) plus a few small static aggregates. Render has 512 MB of RAM, so the app keeps data compact and does no heavy work at startup |
 | `constants.py` | Category labels shared by the build script and the app |

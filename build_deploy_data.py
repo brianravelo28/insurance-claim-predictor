@@ -27,7 +27,7 @@ OUT = ROOT / "deploy_data"
 
 USECOLS = [
     "claimId", "yearOfLoss", "countyName", "latitude", "longitude", "occupancy_group", "occupancy_group_encoded",
-    "flood_zone_group", "flood_zone_encoded", "building_age_years", "is_elevated", "storm_category",
+    "flood_zone_group", "flood_zone_encoded", "building_age_display_years", "is_elevated", "storm_category",
     "distance_from_track_mi", "historical_storm_freq", "amountPaid_real", "storm_id", "nearest_storm_name",
 ]
 QUANTILES = {0.1: "q10", 0.25: "q25", 0.5: "q50", 0.75: "q75", 0.9: "q90"}
@@ -41,7 +41,10 @@ def main():
     assert df["prediction_amount"].notna().all()
 
     df["elevated"] = np.where(df["is_elevated"] == 1, "Elevated", "Not elevated")
-    df["age_band"] = pd.cut(df["building_age_years"], AGE_BINS, labels=AGE_LABELS).astype(str)
+    # Display-only age (build_dataset.py's display_building_age): re-imputes the ~11.7k placeholder-date claims
+    # year-aware instead of with the flat overall median, so they don't all land in one age bucket. Doesn't affect
+    # the model, which uses the flat-median building_age_years (see ablation_placeholder_age.py).
+    df["age_band"] = pd.cut(df["building_age_display_years"], AGE_BINS, labels=AGE_LABELS).astype(str)
     d = df["distance_from_track_mi"]
     df["distance_band"] = np.select([d.isna(), d <= 25, d <= 50, d <= 100], DIST_LABELS[:4], default=DIST_LABELS[4])
     df["matched"] = df["storm_id"].notna()
