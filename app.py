@@ -214,6 +214,7 @@ details.about summary {{ cursor: pointer; font-weight: 600; color: {INK_2}; }}
 details.about ul {{ margin: 8px 0 0; padding-left: 20px; color: {INK_2}; line-height: 1.55; font-size: 15px; }}
 .dash-dropdown, .dash-dropdown *, .dash-datepicker-input, .DateInput_input, .Select-value-label, .Select-input input {{ font-size: 15px !important; }}
 .dash-options-list-option-checkbox {{ width: 18px; height: 18px; margin: 0; cursor: pointer; }}
+.dash-checklist .dash-options-list-option {{ display: flex !important; flex-direction: column-reverse; align-items: center; gap: 6px; cursor: pointer; font-size: 15px; padding: 0; }}
 .dash-options-list:not(.dash-checklist) .dash-options-list-option {{ display: flex !important; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 8px 12px; margin: 0; cursor: pointer; font-size: 15px; }}
 .dash-options-list:not(.dash-checklist) .dash-options-list-option:hover {{ background: {PAGE_BG}; }}
 .dash-dropdown-content {{ max-height: 226px !important; }}
@@ -353,8 +354,8 @@ def estimator_bar():
             field("Building Age (years)", html.Div(dcc.Slider(id="t5-age", min=0, max=100, step=1, value=30,
                                                              marks={0: "0", 25: "25", 50: "50", 75: "75", 100: "100"}),
                                                    style={"width": "260px", "paddingBottom": "18px"})),
-            html.Div(dcc.Checklist(id="t5-elev", options=[{"label": " Elevated?", "value": 1}], value=[]),
-                    style={"paddingTop": "24px", "paddingBottom": "18px"}),
+            html.Div(dcc.Checklist(id="t5-elev", options=[{"label": "Elevated?", "value": 1}], value=[]),
+                    style={"paddingBottom": "18px"}),
             field("Storm Wind Speed (kt, 0 = no storm)", html.Div(dcc.Slider(id="t5-wind", min=0, max=150, step=5, value=90,
                                                                             marks={0: "0", 39: "TS", 74: "Cat 1", 111: "Cat 3", 150: "150"}),
                                                                   style={"width": "300px", "paddingBottom": "18px"})),
@@ -659,7 +660,9 @@ def update_tab3(years, counties, occs, floods, storms, factor):
     st = g.quantile([0.1, 0.25, 0.5, 0.75, 0.9]).unstack()
     st.columns = ["q10", "q25", "q50", "q75", "q90"]
     st["n"] = g.size()
+    st["mean"] = g.mean()
     st = st[st["n"] > 0].reindex([o for o in order if o in st.index])
+    total_n = st["n"].sum()
     labels = [AXIS_SHORT_LABELS.get(str(i), str(i)) for i in st.index]
     # Plotly's box trace ignores hovertemplate for its auto-generated per-stat labels (always shows every fence/
     # min/max it was given), so the box's own hover is disabled and an invisible full-height bar supplies the
@@ -677,8 +680,10 @@ def update_tab3(years, counties, occs, floods, storms, factor):
     log_dollar_axis(fig, "y", "Payout (2025 $, log scale)")
     fig.update_xaxes(tickangle=0, tickfont=dict(size=12))
     tbl = html.Table([
-        html.Thead(html.Tr([html.Th(c) for c in [factor, "Claims", "Median payout", "Middle 50% of claims"]])),
-        html.Tbody([html.Tr([html.Td(str(i)), html.Td(f"{int(r['n']):,}"), html.Td(money(r["q50"])),
+        html.Thead(html.Tr([html.Th(c) for c in [factor.title(), "Claims", "% of Claims", "Median Payout", "Mean Payout",
+                                                  "Middle 50% of Claims"]])),
+        html.Tbody([html.Tr([html.Td(str(i)), html.Td(f"{int(r['n']):,}"), html.Td(f"{100 * r['n'] / total_n:.1f}%"),
+                             html.Td(money(r["q50"])), html.Td(money(r["mean"])),
                              html.Td(f"{money(r['q25'])} to {money(r['q75'])}")]) for i, r in st.iterrows()]),
     ], className="eval")
     return fig, tbl, note
