@@ -216,10 +216,12 @@ details.about ul {{ margin: 8px 0 0; padding-left: 20px; color: {INK_2}; line-he
 .dash-options-list-option-checkbox {{ width: 18px; height: 18px; margin: 0; cursor: pointer; }}
 .dash-options-list:not(.dash-checklist) .dash-options-list-option {{ display: flex !important; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 8px 12px; margin: 0; cursor: pointer; font-size: 15px; }}
 .dash-options-list:not(.dash-checklist) .dash-options-list-option:hover {{ background: {PAGE_BG}; }}
+.dash-dropdown-content {{ max-height: 226px !important; }}
 table.eval {{ border-collapse: collapse; width: 100%; font-size: 15px; display: block; overflow-x: auto; }}
 table.eval th, table.eval td {{ text-align: left; padding: 8px 10px; border-bottom: 1px solid {BORDER}; }}
 table.eval th {{ color: {INK_2}; font-weight: 600; }}
 """
+FONT_STACK = '-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
 
 app = Dash(__name__, suppress_callback_exceptions=True)
 app.title = "Florida Flood Claim Severity"
@@ -245,9 +247,10 @@ def kpi(label, value, sub=None):
                     + ([html.Div(sub, className="s")] if sub else []), className="kpi")
 
 
-def style_fig(fig, title=None, height=None, unified=True):
+def style_fig(fig, title=None, height=None, unified=True, center_title=False):
+    title_pos = dict(x=0.5, xanchor="center") if center_title else dict(x=0)
     fig.update_layout(
-        template="plotly_white", title=dict(text=title, x=0, font=dict(size=17, color=INK)) if title else None,
+        template="plotly_white", title=dict(text=title, font=dict(size=17, color=INK), **title_pos) if title else None,
         paper_bgcolor=SURFACE, plot_bgcolor=SURFACE, font=dict(color=INK_2, size=15), hoverlabel=dict(font_size=15),
         margin=dict(l=76, r=20, t=60 if title else 30, b=80), height=height,
         legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center", yanchor="top", font=dict(color=INK_2)),
@@ -313,23 +316,53 @@ TAB_STYLE = {"padding": "10px 14px", "fontSize": "15px", "border": f"1px solid {
 TAB_SELECTED = {**TAB_STYLE, "backgroundColor": SURFACE, "color": INK, "fontWeight": "650", "borderTop": f"2px solid {BLUE}"}
 
 def filter_bar():
-    def multi(id_, options, placeholder, width):
-        return dcc.Dropdown(id=id_, options=options, multi=True, placeholder=placeholder, style={"width": width})
+    def multi(id_, options, placeholder, width, searchable=True):
+        return dcc.Dropdown(id=id_, options=options, multi=True, placeholder=placeholder, searchable=searchable,
+                            style={"width": width})
 
     return html.Div(
         [
             html.Div([
-                field("Loss years", html.Div(dcc.RangeSlider(
+                field("Loss Years", html.Div(dcc.RangeSlider(
                     id="f-years", min=YEAR_MIN, max=YEAR_MAX, step=1, value=[YEAR_MIN, YEAR_MAX], allowCross=False,
                     marks={y: str(y) for y in range(1980, YEAR_MAX, 10)}), style={"width": "300px", "paddingBottom": "18px"})),
-                field("County", multi("f-county", COUNTY_OPTIONS, "All counties", "200px")),
-                field("Occupancy", multi("f-occ", OCC_OPTIONS, "All types", "200px")),
-                field("Flood zone", multi("f-flood", FLOOD_OPTIONS, "All zones", "200px")),
-                field("Storm category", multi("f-storm", STORM_OPTIONS, "All categories", "200px")),
+                field("County", multi("f-county", COUNTY_OPTIONS, "All counties", "240px")),
+                field("Occupancy", multi("f-occ", OCC_OPTIONS, "All types", "200px", searchable=False)),
+                field("Flood Zone", multi("f-flood", FLOOD_OPTIONS, "All zones", "200px", searchable=False)),
+                field("Storm Categories", multi("f-storm", STORM_OPTIONS, "All categories", "200px", searchable=False)),
             ], className="controls"),
             html.Div(id="f-count", className="note", style={"marginTop": "8px"}),
         ],
         id="filters", className="card", style={"marginBottom": "12px"},
+    )
+
+
+def estimator_bar():
+    """The Claim Estimator's controls, in the same position and style as the global filter_bar() above the tabs
+    (shown only on that tab; toggle_filters() swaps the two in and out together)."""
+    return html.Div(
+        html.Div([
+            field("County", dcc.Dropdown(id="t5-county", options=COUNTIES, value="Lee", clearable=False, style={"width": "200px"})),
+            field("Occupancy", dcc.Dropdown(id="t5-occ", options=[o for o in OCC_ORDER if o != "Unknown"], value="Single-family",
+                                            clearable=False, searchable=False, style={"width": "260px"})),
+            field("Flood Zone", dcc.Dropdown(id="t5-flood", options=[f for f in FLOOD_ORDER if f in FLOOD_CODE],
+                                             value=FLOOD_ORDER[2], clearable=False, searchable=False, style={"width": "330px"})),
+            field("Loss Year", html.Div(dcc.Slider(id="t5-year", min=YEAR_MIN, max=YEAR_MAX, step=1, value=YEAR_DEFAULT,
+                                                   marks={y: str(y) for y in range(1980, YEAR_MAX, 10)}),
+                                        style={"width": "300px", "paddingBottom": "18px"})),
+            field("Building Age (years)", html.Div(dcc.Slider(id="t5-age", min=0, max=100, step=1, value=30,
+                                                             marks={0: "0", 25: "25", 50: "50", 75: "75", 100: "100"}),
+                                                   style={"width": "260px", "paddingBottom": "18px"})),
+            field("Elevated Building", html.Div(dcc.Checklist(id="t5-elev", options=[{"label": " Elevated", "value": 1}], value=[]),
+                                                style={"paddingBottom": "18px", "paddingTop": "6px"})),
+            field("Storm Wind Speed (kt, 0 = no storm)", html.Div(dcc.Slider(id="t5-wind", min=0, max=150, step=5, value=90,
+                                                                            marks={0: "0", 39: "TS", 74: "Cat 1", 111: "Cat 3", 150: "150"}),
+                                                                  style={"width": "300px", "paddingBottom": "18px"})),
+            field("Distance From Storm Track (mi)", html.Div(dcc.Slider(id="t5-dist", min=0, max=150, step=5, value=40,
+                                                                        marks={0: "0", 50: "50", 100: "100", 150: "150"}),
+                                                              style={"width": "260px", "paddingBottom": "18px"})),
+        ], className="controls"),
+        id="estimator-bar", className="card", style={"marginBottom": "12px", "display": "none"},
     )
 
 
@@ -338,11 +371,12 @@ app.layout = html.Div(
     children=[
         header(),
         filter_bar(),
+        estimator_bar(),
         dcc.Tabs(
             id="tabs", value="tab1", colors={"border": BORDER, "primary": BLUE, "background": PAGE_BG},
             children=[dcc.Tab(label=lbl, value=val, style=TAB_STYLE, selected_style=TAB_SELECTED) for val, lbl in
-                      [("tab1", "Overview"), ("tab2", "Storms"), ("tab3", "Risk factors"), ("tab4", "Model"),
-                       ("tab5", "Claim estimator")]],
+                      [("tab1", "Overview"), ("tab2", "Storms"), ("tab3", "Risk Factors"), ("tab4", "Model"),
+                       ("tab5", "Claim Estimator")]],
         ),
         html.Div(id="tab-content", style={"marginTop": "16px"}),
     ],
@@ -361,9 +395,9 @@ def tab1_layout():
         ], className="controls card"),
         html.Div(id="t1-kpis", className="kpi-row", style={"margin": "12px 0"}),
         html.Div(dcc.Graph(id="t1-year-chart"), className="card"),
+        html.Div("Storm years stand out: hover a bar to see the storm behind most of that year's claims.", className="note"),
         html.Div(dcc.Graph(id="t1-map"), className="card", style={"marginTop": "12px"}),
-        html.Div("Storm years stand out: hover a bar to see the storm behind most of that year's claims. "
-                 "Map bubbles are sized by the selected measure and colored by median claim.", className="note"),
+        html.Div("Map bubbles are sized by the selected measure and colored by median claim.", className="note"),
     ])
 
 
@@ -372,20 +406,21 @@ def tab2_layout():
         html.Div([
             field("Rank storms by", dcc.Dropdown(id="t2-metric", options=[{"label": v, "value": k} for k, v in MEASURES.items()],
                                                  value="total", clearable=False, style={"width": "240px"})),
-            field("Show top", dcc.Dropdown(id="t2-n", options=[{"label": str(n), "value": n} for n in (10, 15, 25)],
-                                           value=15, clearable=False, style={"width": "110px"})),
+            field("Show Top", dcc.Dropdown(id="t2-n", options=[{"label": str(n), "value": n} for n in (10, 15, 25)],
+                                           value=15, clearable=False, searchable=False, style={"width": "110px"})),
         ], className="controls card"),
         html.Div(dcc.Graph(id="t2-chart"), className="card", style={"marginTop": "12px"}),
         html.Div(id="t2-table", className="card", style={"marginTop": "12px"}),
         html.Div("Each claim is assigned the nearest storm within 150 miles and 7 days; claims with no storm nearby are not counted here. "
-                 "Older, unnamed storms appear as 'Unnamed'.", className="note"),
+                 "Older, unnamed storms appear as 'Unnamed' in the dataset.", className="note"),
     ])
 
 
 def tab3_layout():
     return html.Div([
         html.Div([field("Compare payouts by", dcc.Dropdown(id="t3-factor", options=[{"label": k, "value": k} for k in FACTORS],
-                                                           value="Storm category", clearable=False, style={"width": "300px"}))],
+                                                           value="Storm category", clearable=False, searchable=False,
+                                                           style={"width": "300px"}))],
                  className="controls card"),
         html.Div(dcc.Graph(id="t3-chart"), className="card", style={"marginTop": "12px"}),
         html.Div(id="t3-table", className="card", style={"marginTop": "12px"}),
@@ -478,26 +513,6 @@ def tab4_layout():
 
 def tab5_layout():
     return html.Div([
-        html.Div([
-            field("County", dcc.Dropdown(id="t5-county", options=COUNTIES, value="Lee", clearable=False, style={"width": "200px"})),
-            field("Occupancy", dcc.Dropdown(id="t5-occ", options=[o for o in OCC_ORDER if o != "Unknown"], value="Single-family",
-                                            clearable=False, style={"width": "260px"})),
-            field("Flood zone", dcc.Dropdown(id="t5-flood", options=[f for f in FLOOD_ORDER if f in FLOOD_CODE],
-                                             value=FLOOD_ORDER[2], clearable=False, style={"width": "330px"})),
-            field("Loss year", html.Div(dcc.Slider(id="t5-year", min=YEAR_MIN, max=YEAR_MAX, step=1, value=YEAR_DEFAULT,
-                                                   marks={y: str(y) for y in range(1980, YEAR_MAX, 10)}),
-                                        style={"width": "300px", "paddingBottom": "18px"})),
-            field("Building age (years)", html.Div(dcc.Slider(id="t5-age", min=0, max=100, step=1, value=30,
-                                                             marks={0: "0", 25: "25", 50: "50", 75: "75", 100: "100"}),
-                                                   style={"width": "260px", "paddingBottom": "18px"})),
-            field("Elevated building", dcc.Checklist(id="t5-elev", options=[{"label": " Elevated", "value": 1}], value=[])),
-            field("Storm wind speed (kt, 0 = no storm)", html.Div(dcc.Slider(id="t5-wind", min=0, max=150, step=5, value=90,
-                                                                            marks={0: "0", 39: "TS", 74: "Cat 1", 111: "Cat 3", 150: "150"}),
-                                                                  style={"width": "300px", "paddingBottom": "18px"})),
-            field("Distance from storm track (mi)", html.Div(dcc.Slider(id="t5-dist", min=0, max=150, step=5, value=40,
-                                                                        marks={0: "0", 50: "50", 100: "100", 150: "150"}),
-                                                              style={"width": "260px", "paddingBottom": "18px"})),
-        ], className="controls card"),
         html.Div(id="t5-kpis", className="kpi-row", style={"margin": "12px 0"}),
         html.Div(dcc.Graph(id="t5-chart"), className="card"),
         html.Div(dcc.Graph(id="t5-year-chart"), className="card", style={"marginTop": "12px"}),
@@ -549,9 +564,10 @@ def update_filter_count(years, counties, occs, floods, storms):
             f"{money(sub['amountPaid_real'].sum())} paid in 2025 dollars.")
 
 
-@app.callback(Output("filters", "style"), Input("tabs", "value"))
+@app.callback(Output("filters", "style"), Output("estimator-bar", "style"), Input("tabs", "value"))
 def toggle_filters(tab):
-    return {"marginBottom": "12px", "display": "none" if tab == "tab5" else "block"}
+    shown, hidden = {"marginBottom": "12px", "display": "block"}, {"marginBottom": "12px", "display": "none"}
+    return (hidden, shown) if tab == "tab5" else (shown, hidden)
 
 
 def _measure_series(frame_group, measure):
@@ -621,10 +637,11 @@ def update_tab2(years, counties, occs, floods, storms, metric, n):
                "Median claim (2025 $)": money(r["median"])}
               for i, r in top.iterrows()],
         columns=[{"name": c, "id": c} for c in ["Storm", "Claims", "Total paid (2025 $)", "Median claim (2025 $)"]],
-        style_cell={"fontSize": "15px", "padding": "8px 10px", "textAlign": "left", "border": "none",
-                    "borderBottom": f"1px solid {BORDER}", "backgroundColor": SURFACE, "color": INK_2},
-        style_header={"fontWeight": "600", "color": INK_2, "backgroundColor": SURFACE, "border": "none",
-                      "borderBottom": f"1px solid {BORDER}"},
+        style_cell={"fontSize": "15px", "fontFamily": FONT_STACK, "padding": "9px 12px", "textAlign": "left",
+                    "border": "none", "borderBottom": f"1px solid {BORDER}", "backgroundColor": SURFACE, "color": INK_2},
+        style_header={"fontWeight": "650", "fontFamily": FONT_STACK, "color": INK, "backgroundColor": SURFACE,
+                      "border": "none", "borderBottom": f"2px solid {BORDER}"},
+        style_data_conditional=[{"if": {"row_index": "odd"}, "backgroundColor": PAGE_BG}],
     )
     return fig, tbl
 
@@ -644,10 +661,19 @@ def update_tab3(years, counties, occs, floods, storms, factor):
     st["n"] = g.size()
     st = st[st["n"] > 0].reindex([o for o in order if o in st.index])
     labels = [AXIS_SHORT_LABELS.get(str(i), str(i)) for i in st.index]
-    fig = go.Figure(go.Box(x=labels, q1=st["q25"], median=st["q50"], q3=st["q75"], lowerfence=st["q10"],
-                           upperfence=st["q90"], marker_color=BLUE, line=dict(color=BLUE), fillcolor="rgba(42,120,214,0.18)",
-                           hoverinfo="y"))
-    style_fig(fig, f"Payout by {factor.lower()} (box = 25th-75th percentile, whiskers = 10th-90th)", 460, unified=False)
+    # Plotly's box trace ignores hovertemplate for its auto-generated per-stat labels (always shows every fence/
+    # min/max it was given), so the box's own hover is disabled and an invisible full-height bar supplies the
+    # tooltip instead, with exactly the fields wanted.
+    fig = go.Figure([
+        go.Box(x=labels, q1=st["q25"], median=st["q50"], q3=st["q75"], lowerfence=st["q10"], upperfence=st["q90"],
+              marker_color=BLUE, line=dict(color=BLUE), fillcolor="rgba(42,120,214,0.18)", hoverinfo="skip", showlegend=False),
+        go.Bar(x=labels, y=(st["q90"] - st["q10"]).values, base=st["q10"].values,
+              marker=dict(color="rgba(0,0,0,0)", line=dict(width=0)), showlegend=False,
+              customdata=np.stack([st["q50"], st["q25"], st["q75"]], axis=-1),
+              hovertemplate="%{x}<br>Median: %{customdata[0]:$,.2f}<br>25th percentile: %{customdata[1]:$,.2f}<br>"
+                            "75th percentile: %{customdata[2]:$,.2f}<extra></extra>"),
+    ])
+    style_fig(fig, f"Payout by {factor.title()}", 460, unified=False, center_title=True)
     log_dollar_axis(fig, "y", "Payout (2025 $, log scale)")
     fig.update_xaxes(tickangle=0, tickfont=dict(size=12))
     tbl = html.Table([
