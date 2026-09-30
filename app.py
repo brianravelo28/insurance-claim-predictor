@@ -221,8 +221,21 @@ details.about ul {{ margin: 8px 0 0; padding-left: 20px; color: {INK_2}; line-he
 table.eval {{ border-collapse: collapse; width: 100%; font-size: 15px; display: block; overflow-x: auto; }}
 table.eval th, table.eval td {{ text-align: left; padding: 8px 10px; border-bottom: 1px solid {BORDER}; }}
 table.eval th {{ color: {INK_2}; font-weight: 600; }}
+.chart-hint {{ margin: 4px 2px 0; color: {INK_3}; font-size: 15px; font-style: italic; }}
 """
 FONT_STACK = '-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+
+CHART_HINT = (
+    "Drag to zoom into part of the chart; double-click the chart to reset the view. "
+    "Click a legend entry to hide that series; double-click it to isolate it."
+)
+
+
+MAP_HINT = "Drag to pan the map; scroll to zoom; double-click to reset the view."
+
+
+def chart_hint(text=CHART_HINT):
+    return html.P(text, className="chart-hint")
 
 app = Dash(__name__, suppress_callback_exceptions=True)
 app.title = "Florida Flood Claim Severity"
@@ -395,9 +408,9 @@ def tab1_layout():
                                           value="total", clearable=False, style={"width": "240px"})),
         ], className="controls card"),
         html.Div(id="t1-kpis", className="kpi-row", style={"margin": "12px 0"}),
-        html.Div(dcc.Graph(id="t1-year-chart"), className="card"),
+        html.Div([dcc.Graph(id="t1-year-chart", config={"displayModeBar": False}), chart_hint()], className="card"),
         html.Div("Storm years stand out: hover a bar to see the storm behind most of that year's claims.", className="note"),
-        html.Div(dcc.Graph(id="t1-map"), className="card", style={"marginTop": "12px"}),
+        html.Div([dcc.Graph(id="t1-map", config={"displayModeBar": False}), chart_hint(MAP_HINT)], className="card", style={"marginTop": "12px"}),
         html.Div("Map bubbles are sized by the selected measure and colored by median claim.", className="note"),
     ])
 
@@ -410,7 +423,7 @@ def tab2_layout():
             field("Show Top", dcc.Dropdown(id="t2-n", options=[{"label": str(n), "value": n} for n in (10, 15, 25)],
                                            value=15, clearable=False, searchable=False, style={"width": "110px"})),
         ], className="controls card"),
-        html.Div(dcc.Graph(id="t2-chart"), className="card", style={"marginTop": "12px"}),
+        html.Div([dcc.Graph(id="t2-chart", config={"displayModeBar": False}), chart_hint()], className="card", style={"marginTop": "12px"}),
         html.Div(id="t2-table", className="card", style={"marginTop": "12px"}),
         html.Div("Each claim is assigned the nearest storm within 150 miles and 7 days; claims with no storm nearby are not counted here. "
                  "Older, unnamed storms appear as 'Unnamed' in the dataset.", className="note"),
@@ -423,7 +436,7 @@ def tab3_layout():
                                                            value="Storm category", clearable=False, searchable=False,
                                                            style={"width": "300px"}))],
                  className="controls card"),
-        html.Div(dcc.Graph(id="t3-chart"), className="card", style={"marginTop": "12px"}),
+        html.Div([dcc.Graph(id="t3-chart", config={"displayModeBar": False}), chart_hint()], className="card", style={"marginTop": "12px"}),
         html.Div(id="t3-table", className="card", style={"marginTop": "12px"}),
         html.Div(id="t3-note", className="note"),
     ])
@@ -506,7 +519,7 @@ def tab4_layout():
                  "below the next line responds to the filters.", className="note"),
         ablation_block(),
         html.Div(id="t4-dyn", style={"marginTop": "12px"}),
-        html.Div(dcc.Graph(figure=f3), className="card", style={"marginTop": "12px"}),
+        html.Div([dcc.Graph(figure=f3, config={"displayModeBar": False}), chart_hint()], className="card", style={"marginTop": "12px"}),
         html.Div("R² and error are on the log scale of the payout in 2025 dollars. 'Typical % error' is the median of |predicted - actual| / actual. "
                  "Features do not include damage amounts or coverage limits, which are only known after the claim exists.", className="note"),
     ])
@@ -515,8 +528,8 @@ def tab4_layout():
 def tab5_layout():
     return html.Div([
         html.Div(id="t5-kpis", className="kpi-row", style={"margin": "12px 0"}),
-        html.Div(dcc.Graph(id="t5-chart"), className="card"),
-        html.Div(dcc.Graph(id="t5-year-chart"), className="card", style={"marginTop": "12px"}),
+        html.Div([dcc.Graph(id="t5-chart", config={"displayModeBar": False}), chart_hint()], className="card"),
+        html.Div([dcc.Graph(id="t5-year-chart", config={"displayModeBar": False}), chart_hint()], className="card", style={"marginTop": "12px"}),
         html.Div(f"An estimate for a paid claim, in constant 2025 dollars. This uses a version of the model that also knows the loss year "
                  f"(R² {YEAR_MODEL['r2_log']:.2f}, vs {METRICS['headline_year_grouped_cv']['r2_log']:.2f} without it), so building age is "
                  f"not standing in for the era. The raw output is scaled up by its median out-of-sample under-prediction ({EST_UNDER:.2f}x), and the "
@@ -728,8 +741,8 @@ def update_tab4(years, counties, occs, floods, storms):
     note = html.Div("R\u00b2 within a narrow slice is not comparable to the headline: filtering removes the variation the model "
                     "uses to separate claims, so scores usually fall. Predictions are the year-grouped out-of-sample ones.",
                     className="note")
-    return html.Div([kpis, html.Div(dcc.Graph(figure=f1), className="card", style={"marginTop": "12px"}),
-                     html.Div(dcc.Graph(figure=f2), className="card", style={"marginTop": "12px"}), note])
+    return html.Div([kpis, html.Div([dcc.Graph(figure=f1, config={"displayModeBar": False}), chart_hint()], className="card", style={"marginTop": "12px"}),
+                     html.Div([dcc.Graph(figure=f2, config={"displayModeBar": False}), chart_hint()], className="card", style={"marginTop": "12px"}), note])
 
 
 app.callback(Output("t4-dyn", "children"), *FILTERS)(update_tab4)
