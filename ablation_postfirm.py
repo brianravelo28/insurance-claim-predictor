@@ -2,7 +2,8 @@
 
 The flag says whether construction started before or after the community's initial flood map (FIRM); buildings started
 after 1974-12-31 or the initial FIRM, whichever is later, are "post-FIRM" and were built to floodplain standards. Unlike
-the construction date it is complete for every claim (no 1492 placeholder; every placeholder building is flagged pre-FIRM).
+the construction date it is complete for every claim (no 1492 placeholder; every building carrying the 1492 sentinel
+date is flagged pre-FIRM).
 Scored with the same year-grouped cross-validation and folds as ablation_year_control.py, so results are comparable.
 
 Run after build_dataset.py:   python ablation_postfirm.py   ->  data/ablation_postfirm.json

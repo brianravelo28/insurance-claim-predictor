@@ -1,12 +1,15 @@
 """
 Florida Flood Claim Severity - interactive Dash app (real FEMA NFIP claims + NOAA HURDAT2 storm tracks).
 
+A shared filter bar above the tabs (Loss Years, County, Occupancy, Flood Zone, Storm Categories) drives tabs 1-4; the
+Claim Estimator swaps it for its own control bar (see toggle_filters).
+
 Tabs:
 1. Overview          claims by year and county (payouts in constant 2025 dollars)
 2. Storms            which storms drove the most claims and dollars
-3. Risk factors      how payouts differ by storm strength, flood zone, occupancy, elevation, age, distance
-4. Model             honest out-of-sample evaluation of the LightGBM severity model
-5. Claim estimator   what-if: estimated payout for a hypothetical claim
+3. Risk Factors      how payouts differ by storm strength, flood zone, occupancy, elevation, age, distance
+4. Model             honest out-of-sample evaluation of the LightGBM severity model, plus two building-age tests
+5. Claim Estimator   what-if: typical payout for a hypothetical claim (uses the loss-year-control model)
 
 Run locally: python app.py   (port from $PORT, default 8058).  Hosted: gunicorn wsgi:application
 Data: deploy_data/ (built by build_deploy_data.py).
@@ -92,7 +95,7 @@ FACTOR_NOTES = {
     "Flood zone": "FEMA flood zone the property was rated in, grouped by FEMA's zone definitions.",
     "Occupancy type": "FEMA's legacy (1-4, 6) and newer (11-19) occupancy codes describe the same building types, so they are grouped together.",
     "Elevated building": "FEMA's elevatedBuildingIndicator.",
-    "Building age": "Age at time of loss. About 4% of buildings have an unknown construction date (FEMA uses a 1492 placeholder); every one of them is flagged pre-FIRM, so here they're bucketed using the age of known-date pre-FIRM buildings from the same loss year, rather than one flat age for all of them (this affects only this chart, not the model). Caution: old-building claims are mostly recent claims (median age at loss was about 30 in the 1980s and 50 in the 2020s), and recent claims are larger even after inflation adjustment, so age and loss year are entangled.",
+    "Building age": "Age at time of loss. About 4% of buildings have an unusable construction date (98% of them FEMA's 1492 placeholder, and every placeholder is flagged pre-FIRM, so they are probably old), so here they're bucketed using the age of known-date pre-FIRM buildings from the same loss year, rather than one flat age for all of them (this affects only this chart, not the model). Caution: old-building claims are mostly recent claims (median age at loss was about 30 in the 1980s and 50 in the 2020s), and recent claims are larger even after inflation adjustment, so age and loss year are entangled.",
     "Distance from storm track": "Distance from the claim's (blurred) location to the nearest storm track point.",
 }
 FACTORS = {name: (col, order, FACTOR_NOTES[name]) for name, (col, order) in FACTOR_COLUMNS.items()}
@@ -314,7 +317,7 @@ def header():
                         html.Li("A claim is matched to the nearest storm track point within 150 miles and 7 days of the loss date. Checked against FEMA's own storm labels: 95.6% of claims FEMA calls a named hurricane or tropical storm matched the same-named storm."),
                         html.Li(f"The model is LightGBM on log payout. Its score comes from 5-fold cross-validation grouped by loss year, so each claim is predicted by a model that never saw that year: R² {h['r2_log']:.2f}. This is a modest signal, not a precise predictor; storm-to-storm variation is large."),
                         html.Li("Caveat: building age is the model's strongest signal, but it is entangled with loss year (older buildings appear mostly in recent, larger claims), so treat it as a correlation, not a cause. A loss-year test on the Model tab shows the calendar year alone recovers essentially all of its predictive value."),
-                        html.Li("Locations are deliberately blurred by FEMA to 0.1 degree (about 7 miles), and 135 'Florida' claims carried coordinates in other states and were dropped."),
+                        html.Li("Locations are deliberately blurred by FEMA to 0.1 degree (about 7 miles), and 105 paid claims with coordinates outside Florida (many in New York) were dropped."),
                         html.Li("The project's data-quirk log (sentinel dates, changing occupancy codes, malformed HURDAT2 lines, and more) is in DATA_QUIRKS.md in the repository."),
                     ]),
                 ],
@@ -481,7 +484,7 @@ def ablation_block():
                  f"of age it scores {instead:.3f}, no better than having no age at all ({no_age:.3f}); added on top of age it doesn't help "
                  f"({add_on:.3f} vs {cur:.3f}); and once the loss year is in the model it adds essentially nothing ({with_both:.3f} vs "
                  f"{with_year:.3f}). It is another coarse era marker: roughly 5% of claims in the 1970s came from post-FIRM buildings, "
-                 "versus about 45% in the 2010s. Individual folds swing by up to about 0.04 between near-identical models, so differences of "
+                 "versus about 45% in the 2010s. Individual folds can move by several hundredths (up to about 0.08 across these tests) between models whose overall scores are nearly equal, so differences of "
                  "a few thousandths are not meaningful.")
         children += [html.H3("Does FEMA's post-FIRM flag help?", style={"margin": "16px 0 8px"}), _ablation_table(f),
                      html.Div(note2, className="note")]
@@ -515,7 +518,7 @@ def tab4_layout():
         html.Div(f"R² by fold is {folds}: some storm seasons are far harder to predict than others. "
                  f"On years it has never seen, the model under-predicts: the actual median claim runs about {UNDERPREDICT:.1f}x its prediction "
                  "(payouts in a held-out storm year tend to be larger than in the years it learned from). The calibration chart below shows "
-                 "this, and the claim estimator corrects for it. The table above always covers all claims; everything "
+                 "this, and the Claim Estimator corrects for it (by its own model's 1.53x). The table above always covers all claims; everything "
                  "below the next line responds to the filters.", className="note"),
         ablation_block(),
         html.Div(id="t4-dyn", style={"marginTop": "12px"}),
@@ -573,7 +576,7 @@ NO_CLAIMS = "No claims match these filters"
 def update_filter_count(years, counties, occs, floods, storms):
     sub = filtered(years, counties, occs, floods, storms)
     if len(sub) == N_CLAIMS:
-        return f"Showing all {N_CLAIMS:,} paid claims. Filters apply to every tab except the claim estimator."
+        return f"Showing all {N_CLAIMS:,} paid claims. Filters apply to every tab except Claim Estimator, which has its own controls."
     return (f"Showing {len(sub):,} of {N_CLAIMS:,} paid claims ({100 * len(sub) / N_CLAIMS:.1f}%), "
             f"{money(sub['amountPaid_real'].sum())} paid in 2025 dollars.")
 

@@ -1,6 +1,7 @@
-"""Does a better guess for the 11,713 placeholder-date buildings (the FEMA '1492' sentinel) improve the model?
+"""Does a better guess for the 11,713 buildings with no usable construction date improve the model?
 
-Today those buildings (3.8% of claims) get the overall median age. But every one of them is flagged pre-FIRM (see
+98% of them (11,466) carry FEMA's '1492' sentinel date; the rest are 247 other bad dates (see DATA_QUIRKS.md #23).
+Today those buildings (3.8% of claims) get the overall median age. But every sentinel row is flagged pre-FIRM (see
 ablation_postfirm.py), and "pre-FIRM" is not a fixed age: the known-date pre-FIRM population's median age at loss grows
 from 9 years in the 1970s to 54 in the 2020s (it's a fixed construction era getting older). 92% of placeholder rows are
 themselves 1970s-80s losses. A single flat "old" constant would misfit most of them; a year-aware value should not.

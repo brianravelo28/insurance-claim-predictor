@@ -1,4 +1,8 @@
-"""Download and cache the real source data: OpenFEMA NFIP claims (Florida) and NOAA HURDAT2."""
+"""Download and cache the real source data: OpenFEMA NFIP claims (Florida), NOAA HURDAT2 and FRED CPI-U.
+
+Everything lands in data/raw/ (gitignored); a re-run reuses the cache unless called with --refresh. Note that FEMA's v2
+claims endpoint is scheduled for removal on 2026-10-15, so after that --refresh will fail and the cache is the only copy.
+"""
 import re
 import sys
 import time

@@ -226,13 +226,14 @@ def wind_to_category(w):
 def display_building_age(c, min_n=30):
     """Building age for DISPLAY/aggregation only (e.g. the Risk factors 'Building age' chart) -- NOT a model feature.
 
-    Placeholder-date rows (building_age_missing==1; all flagged pre-FIRM, see DATA_QUIRKS.md) get the median age of
-    known-date pre-FIRM claims from the SAME loss year, instead of the flat overall median: "pre-FIRM" is not a fixed
-    age (it ages from ~9 years old in the 1970s to ~55 by the 2020s as the same construction era gets older), and 92%
-    of placeholder rows are themselves 1970s-80s losses. Tested in ablation_placeholder_age.py: this makes no
-    difference to the model (R2 0.204 vs 0.202, within fold-to-fold noise), so the model keeps the flat-median
-    building_age_years column; this display-only version just avoids lumping ~11,700 claims from every era into one
-    misleading age bucket.
+    Rows with no usable construction date (building_age_missing==1: 11,466 are FEMA's 1492 sentinel, all flagged
+    pre-FIRM, plus 247 other bad dates; see DATA_QUIRKS.md #21 and #23) get the median age of known-date pre-FIRM
+    claims from the SAME loss year, instead of the flat overall median: "pre-FIRM" is not a fixed age (it ages from
+    ~9 years old in the 1970s to ~55 by the 2020s as the same construction era gets older), and 92% of these rows are
+    themselves 1970s-80s losses. Tested in ablation_placeholder_age.py: this makes no difference to the model (R2
+    0.204 vs 0.203, within fold-to-fold noise), so the model keeps the flat-median building_age_years column; this
+    display-only version just avoids lumping ~11,700 claims from every era into one misleading age bucket. (It also
+    applies the pre-FIRM age to the 247 non-sentinel rows, 0.08% of claims, some of which are really new buildings.)
     """
     known_prefirm = c[(c["building_age_missing"] == 0) & (c["post_firm"] == 0)]
     by_year = known_prefirm.groupby("yearOfLoss")["building_age_years"].agg(["median", "size"])

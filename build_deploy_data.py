@@ -1,16 +1,18 @@
-"""Build the slim deploy_data/ bundle the hosted dashboard loads.
+"""Build the compact deploy_data/ bundle the hosted dashboard loads.
 
-Run after build_dataset.py and train_model.py:   python build_deploy_data.py
+Run after build_dataset.py, train_model.py and train_year_model.py:   python build_deploy_data.py
+(the app will not start without model_year.txt and year_control_model.json; the two ablation files are optional)
 
-The free Render tier has 512 MB of RAM, so every static aggregate is computed here, once, instead of at app startup:
+Render's instance has 512 MB of RAM, so every static aggregate is computed here, once, instead of at app startup:
 
   claims.parquet       ALL paid claims, one compact row each (categoricals + float32); every tab filters and aggregates it live
   aggregates.json      county centroids, feature codes and residual quantiles (small, static)
-  model_year.txt       LightGBM booster (log payout in 2025 dollars) with a loss-year feature, used by the claim estimator
+  model_year.txt       LightGBM booster (log payout in 2025 dollars) with a loss-year feature, used by the Claim Estimator
                        (train_year_model.py). The headline model's out-of-sample predictions are already in claims.parquet.
   year_control_model.json  that model's own out-of-sample residual quantiles and scores
   model_metrics.json   honest evaluation numbers, feature importance, per-year results
   build_report.json    data-cleaning counts and checks
+  ablation_year_control.json, ablation_postfirm.json   optional; shown on the Model tab when present
 """
 import json
 import shutil
@@ -82,12 +84,18 @@ def main():
         assert table[col].notna().all(), f"unmapped label in {col}"
     table.to_parquet(OUT / "claims.parquet", compression="snappy", index=False)
 
-    for name in ("model_metrics.json", "build_report.json", "ablation_year_control.json", "ablation_postfirm.json",
-                 "model_year.txt", "year_control_model.json"):
+    required = {"model_metrics.json": "train_model.py", "build_report.json": "build_dataset.py",
+                "model_year.txt": "train_year_model.py", "year_control_model.json": "train_year_model.py"}
+    optional = {"ablation_year_control.json": "ablation_year_control.py", "ablation_postfirm.json": "ablation_postfirm.py"}
+    for name, script in required.items():
+        if not (DATA / name).exists():
+            raise FileNotFoundError(f"data/{name} is missing: run {script} first (the app cannot start without it)")
+        shutil.copy(DATA / name, OUT / name)
+    for name, script in optional.items():
         if (DATA / name).exists():
             shutil.copy(DATA / name, OUT / name)
         else:
-            print(f"note: {name} not found (run ablation_year_control.py to include it)")
+            print(f"note: data/{name} not found; the Model tab will skip that section (run {script} to include it)")
 
     total = 0.0
     for f in sorted(OUT.iterdir()):

@@ -8,7 +8,8 @@ imports the real app in a background thread, then hands requests over.
 
 The loader is started per *process*, lazily on the first request (keyed on os.getpid()) -
 never at import time, because gunicorn's master imports this module and then forks the
-worker, and forking while a thread is mid-import deadlocks the child.
+worker. A thread started in the master does not exist in the forked worker, so the worker would never load the
+app (and forking while a thread is mid-import can deadlock the child).
 """
 import json
 import os
