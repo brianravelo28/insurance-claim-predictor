@@ -1,5 +1,7 @@
 # Florida Flood Claim Severity
 
+![Florida Flood Claim Severity dashboard](docs/screenshot.png)
+
 How much does a paid NFIP flood claim cost in Florida, and what drives it? Real FEMA claims joined to NOAA hurricane tracks, modeled with LightGBM and served as an interactive Dash dashboard.
 
 **Live dashboard: https://florida-flood-claim-severity.onrender.com/**
