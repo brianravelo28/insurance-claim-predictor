@@ -42,3 +42,6 @@ Thumbs.db
 
 # Pipeline outputs are regenerable; the slim deploy_data/ bundle is what gets committed
 data/
+
+# Local Claude Code settings
+.claude/
