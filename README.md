@@ -38,7 +38,6 @@ Payout = building + contents + increased-cost-of-compliance. About 30% of claims
 - **Model:** LightGBM on the log of the 2025-dollar payout with an L1 (median) objective, 13 features (building age and a missing-age flag, elevated, flood zone, occupancy group, storm category / wind / distance / days to the storm, storms nearby in the prior 40 years, latitude and longitude). Damage amounts and coverage limits are not features; they only exist after a claim does.
 - **Evaluation:** 5-fold cross-validation grouped by loss year, so every claim is predicted by a model that never saw its year. A random split scores higher (0.41) only because claims from the same storm leak across train and test. A train-on-the-past, test-on-the-future split scores negative (-0.27 for 2020 onward, versus -0.62 for predicting the average) because payouts keep growing faster than inflation.
 - **Known limits:** the model under-predicts unseen years by about 1.4x. Building age, its strongest signal, is mostly a stand-in for loss year: a loss-year control alone recovers essentially all of age's predictive value (R² 0.206 vs 0.204). The Claim Estimator therefore uses a second model that also knows the loss year (R² 0.211) with its own out-of-sample calibration (it under-predicts by 1.53x and the estimator corrects for that). FEMA's post-FIRM flag, tested as a cleaner alternative to age, doesn't help. About 3.8% of claims have an unusable construction date; the model fills them with the median age and a flag, and a year-aware fill made no difference to the model, so it is used only for the Building Age chart. Locations are blurred by FEMA to 0.1 degree (~7 miles). Within narrow filter slices R² is much lower than the headline.
-- **[DATA_QUIRKS.md](DATA_QUIRKS.md)** catalogs the odd things found in the data and tools (a `1492-10-12` construction-date placeholder on 4.3% of raw rows, two coexisting occupancy code schemes, malformed HURDAT2 lines, and more).
 
 ## Run it
 
@@ -81,6 +80,5 @@ python app.py                    # dashboard at http://localhost:8058
 | `render.yaml`, `requirements-render.txt` | Render Blueprint and the hosted app's dependencies |
 | `requirements.txt` | Dependencies for the full pipeline and the app |
 | `deploy_data/` | What the hosted app loads (committed) |
-| `DATA_QUIRKS.md` | Catalog of data and tooling quirks |
 
 *Numbers above were last checked against `deploy_data/` on 2026-10-07.*

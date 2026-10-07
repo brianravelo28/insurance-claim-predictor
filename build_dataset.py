@@ -14,7 +14,7 @@ OUT_CSV = ROOT / "data" / "insurance_clean.csv.gz"
 OUT_REPORT = ROOT / "data" / "build_report.json"
 
 EARTH_MI = 3959.0
-# Tuned against FEMA's own floodEvent storm labels (see DATA_QUIRKS.md): the spec's 50 mi / +/-30 d gave 67% correct
+# Tuned against FEMA's own floodEvent storm labels: the spec's 50 mi / +/-30 d gave 67% correct
 # storms and reached only ~half of named-storm claims; 150 mi / +/-7 d gives ~99.8% correct and ~96% reach.
 RADIUS_MI = 150.0
 WINDOW_H = 7 * 24
@@ -227,7 +227,7 @@ def display_building_age(c, min_n=30):
     """Building age for DISPLAY/aggregation only (e.g. the Risk factors 'Building age' chart) -- NOT a model feature.
 
     Rows with no usable construction date (building_age_missing==1: 11,466 are FEMA's 1492 sentinel, all flagged
-    pre-FIRM, plus 247 other bad dates; see DATA_QUIRKS.md #21 and #23) get the median age of known-date pre-FIRM
+    pre-FIRM, plus 247 other bad dates) get the median age of known-date pre-FIRM
     claims from the SAME loss year, instead of the flat overall median: "pre-FIRM" is not a fixed age (it ages from
     ~9 years old in the 1970s to ~55 by the 2020s as the same construction era gets older), and 92% of these rows are
     themselves 1970s-80s losses. Tested in ablation_placeholder_age.py: this makes no difference to the model (R2

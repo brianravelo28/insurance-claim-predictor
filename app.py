@@ -318,7 +318,6 @@ def header():
                         html.Li(f"The model is LightGBM on log payout. Its score comes from 5-fold cross-validation grouped by loss year, so each claim is predicted by a model that never saw that year: R² {h['r2_log']:.2f}. This is a modest signal, not a precise predictor; storm-to-storm variation is large."),
                         html.Li("Caveat: building age is the model's strongest signal, but it is entangled with loss year (older buildings appear mostly in recent, larger claims), so treat it as a correlation, not a cause. A loss-year test on the Model tab shows the calendar year alone recovers essentially all of its predictive value."),
                         html.Li("Locations are deliberately blurred by FEMA to 0.1 degree (about 7 miles), and 105 paid claims with coordinates outside Florida (many in New York) were dropped."),
-                        html.Li("The project's data-quirk log (sentinel dates, changing occupancy codes, malformed HURDAT2 lines, and more) is in DATA_QUIRKS.md in the repository."),
                     ]),
                 ],
                 className="about",
